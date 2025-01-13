@@ -1,0 +1,13 @@
+{
+  "vm": "Cannon",
+  "allowed_opcodes": [
+      "Add",
+      "Sub",
+      "Mul",
+      "Div"
+  ],
+  "restricted_syscalls": [
+      "syscall.Write",
+      "syscall.Read"
+  ]
+}
