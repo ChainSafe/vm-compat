@@ -120,12 +120,6 @@ func parseAsmOutput(input string) []Instruction {
 			continue
 		}
 
-		fmt.Println("line---", line)
-		if line == "0x0008 00008 (/Users/ohmpatel/vm-compat/cmd/opcode-generator/sample.go:7)\tBNE\tR1, 36" {
-			fmt.Println("found---")
-			matches := asmLineRe.FindStringSubmatch(line)
-			fmt.Println(matches)
-		}
 		if matches := asmLineRe.FindStringSubmatch(line); len(matches) > 0 {
 			instruction := Instruction{
 				Address: matches[1],
