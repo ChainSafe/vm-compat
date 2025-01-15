@@ -15,8 +15,6 @@ type Instruction struct {
 	Address string
 	Opcode  string
 	Args    []string
-	Line    int
-	Comment string
 }
 
 func main() {
@@ -69,12 +67,6 @@ func main() {
 			inst.Opcode,
 			strings.Join(inst.Args, ", "))
 
-		if inst.Line > 0 {
-			fmt.Printf(" Line: %-4d", inst.Line)
-		}
-		if inst.Comment != "" {
-			fmt.Printf(" Comment: %s", inst.Comment)
-		}
 		fmt.Println()
 	}
 }
@@ -117,37 +109,28 @@ func parseAsmOutput(input string) []Instruction {
 	var instructions []Instruction
 	scanner := bufio.NewScanner(strings.NewReader(input))
 
-	lineNumRe := regexp.MustCompile(`\s+(\d+)\s*$`)
-	commentRe := regexp.MustCompile(`//.*$`)
 	asmLineRe := regexp.MustCompile(`^\s*(0x[0-9a-fA-F]+)\s+([0-9]+)\s+\((.+):(\d+)\)\s+(\S+)\s+(.*)$`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		line = strings.TrimSpace(line)
 
 		if line == "" || strings.Contains(line, "TEXT") || strings.Contains(line, "PCDATA") || strings.Contains(line, "FUNCDATA") ||
 			strings.Contains(line, "CALL") || strings.Contains(line, "gclocals") {
 			continue
 		}
 
-		comment := ""
-		if commentMatch := commentRe.FindString(line); commentMatch != "" {
-			comment = strings.TrimSpace(commentMatch)
-			line = strings.TrimSpace(strings.TrimSuffix(line, commentMatch))
+		fmt.Println("line---", line)
+		if line == "0x0008 00008 (/Users/ohmpatel/vm-compat/cmd/opcode-generator/sample.go:7)\tBNE\tR1, 36" {
+			fmt.Println("found---")
+			matches := asmLineRe.FindStringSubmatch(line)
+			fmt.Println(matches)
 		}
-
-		lineNum := 0
-		if lineMatch := lineNumRe.FindStringSubmatch(line); len(lineMatch) > 1 {
-			fmt.Sscanf(lineMatch[1], "%d", &lineNum)
-			line = strings.TrimSpace(strings.TrimSuffix(line, lineMatch[0]))
-		}
-
 		if matches := asmLineRe.FindStringSubmatch(line); len(matches) > 0 {
 			instruction := Instruction{
 				Address: matches[1],
 				Opcode:  matches[5],
 				Args:    parseArgs(matches[6]),
-				Line:    lineNum,
-				Comment: comment,
 			}
 			instructions = append(instructions, instruction)
 		}
