@@ -67,6 +67,7 @@ func main() {
 			inst.Opcode,
 			strings.Join(inst.Args, ", "))
 
+		fmt.Println()
 	}
 }
 
