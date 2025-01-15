@@ -81,6 +81,11 @@ func main() {
 
 func generateSourceAssembly(target string) (string, error) {
 	cmd := exec.Command("go", "build", "-gcflags=-S", target)
+	cmd.Env = append(os.Environ(),
+		"GOOS=linux",
+		"GOARCH=mips",
+	)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate source assembly: %w\nOutput:\n%s", err, string(output))
@@ -119,7 +124,8 @@ func parseAsmOutput(input string) []Instruction {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if line == "" || strings.Contains(line, "TEXT") || strings.Contains(line, "PCDATA") || strings.Contains(line, "FUNCDATA") {
+		if line == "" || strings.Contains(line, "TEXT") || strings.Contains(line, "PCDATA") || strings.Contains(line, "FUNCDATA") ||
+			strings.Contains(line, "CALL") || strings.Contains(line, "gclocals") {
 			continue
 		}
 
