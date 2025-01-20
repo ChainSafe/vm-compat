@@ -9,6 +9,7 @@ import (
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
 	VMName             string   `json:"vm"`
+	Arch               string   `json:"arch"`
 	AllowedOpcodes     []string `json:"allowed_opcodes"`
 	RestrictedSyscalls []string `json:"restricted_syscalls"`
 }
