@@ -8,9 +8,11 @@ import (
 
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
-	VMName             string   `json:"vm"`
-	AllowedOpcodes     []string `json:"allowed_opcodes"`
-	RestrictedSyscalls []string `json:"restricted_syscalls"`
+	VMName         string   `json:"vm"`
+	GOOS           string   `json:"goos"`
+	GOARCH         string   `json:"goarch"`
+	AllowedOpcodes []string `json:"allowed_opcodes"`
+	AllowedSycalls []int    `json:"allowed_syscalls"`
 }
 
 // LoadProfile loads a VM profile from a JSON file.

@@ -1,22 +1,34 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"strings"
+	"syscall"
 )
 
-func main() {
-	// Sample Go code
-	a := 10
-	b := 5
-	fmt.Println(a + b) // Add operation (supported opcode)
-	str := "hello"
-	str = strings.ToUpper(str)
+var ptr = syscall.SYS_OPENAT
 
-	// Incompatible syscall
-	_, err := os.Open("file.txt")
-	if err != nil {
-		fmt.Println("Error:", err)
+func RawSyscall(trap uintptr) {
+	syscall.RawSyscall6(trap, 0, 0, 0, 0, 0, 0)
+}
+
+func Syscall2(t uintptr) {
+	RawSyscall(t)
+}
+
+func main() {
+	var trap uintptr = syscall.SYS_READ
+	if true {
+		trap = getTrap()
 	}
+	Syscall2(trap)
+}
+
+func getTrap() uintptr {
+	if true {
+		return getTrap2()
+	} else {
+		return uintptr(ptr)
+	}
+}
+func getTrap2() uintptr {
+	return syscall.SYS_WRITE
 }
