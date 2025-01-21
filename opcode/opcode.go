@@ -18,3 +18,7 @@ type Provider interface {
 	ParseOpcode(line string) (*Instruction, error)
 	IsAllowedOpcode(code uint64) bool
 }
+
+type Analyzer interface {
+	AnalyzeOpcodes(path string) error
+}
