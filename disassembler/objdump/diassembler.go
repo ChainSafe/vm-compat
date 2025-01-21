@@ -1,16 +1,41 @@
-package diassembler
+package objdump
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/ChainSafe/vm-compat/disassembler"
 )
 
-func GenerateBinaryDisassembly(target string, outputPath, goos, arch string) (string, error) {
-	disassembly, err := generateBinaryDisassembly(target, goos, arch)
-	if err != nil {
-		return "", err
+type Objdump struct {
+	Arch string
+	GOOS string
+}
+
+func New(arch, goos string) *Objdump {
+	return &Objdump{
+		Arch: arch,
+		GOOS: goos,
+	}
+}
+
+func (o *Objdump) Disassemble(mode disassembler.Source, target string, outputPath string) (string, error) {
+	var disassembly string
+	var err error
+
+	switch mode {
+	case disassembler.SourceBinary:
+		disassembly, err = generateBinaryDisassembly(target, o.GOOS, o.Arch)
+		if err != nil {
+			return "", err
+		}
+	case disassembler.SourceFile:
+		disassembly, err = generateSourceAssembly(target, o.GOOS, o.Arch)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if outputPath != "" {
@@ -25,26 +50,7 @@ func GenerateBinaryDisassembly(target string, outputPath, goos, arch string) (st
 		return fmt.Sprintf("disassembly written to %s", outputPath), nil
 	}
 	return disassembly, nil
-}
 
-func GenerateSourceAssembly(target string, outputPath string, goos, arch string) (string, error) {
-	assembly, err := generateSourceAssembly(target, goos, arch)
-	if err != nil {
-		return "", err
-	}
-
-	if outputPath != "" {
-		absOutputPath, err := filepath.Abs(outputPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to get absolute path of output file: %w", err)
-		}
-		err = os.WriteFile(absOutputPath, []byte(assembly), 0644)
-		if err != nil {
-			return "", fmt.Errorf("failed to write to output file: %w", err)
-		}
-		return fmt.Sprintf("assembly written to %s", outputPath), nil
-	}
-	return assembly, nil
 }
 
 func generateSourceAssembly(target string, goos, arch string) (string, error) {
