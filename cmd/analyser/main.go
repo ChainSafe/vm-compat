@@ -52,13 +52,14 @@ func main() {
 	switch *analyzer {
 	case "opcode":
 		err = analyzeOpcode(profile, args...)
+	case "syscall":
+		err = analysis.AnalyseSyscalls(profile, args...)
+		if err != nil {
+			panic(err)
+		}
+	default:
+		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
-	err = analysis.AnalyseSyscalls(profile, args...)
-	if err != nil {
-		panic(err)
-	}
-
-	opcode.AnalyseOpcodes(profile, args...)
 }
 
 func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {

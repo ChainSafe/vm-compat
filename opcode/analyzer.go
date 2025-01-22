@@ -67,6 +67,6 @@ func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {
 	case "mips64":
 		return mips.NewProvider(common.ArchMIPS64Bit, prof), nil
 	default:
-		return nil, fmt.Errorf("unsupported architecture: %d", arch)
+		return nil, fmt.Errorf("unsupported architecture: %s", arch)
 	}
 }
