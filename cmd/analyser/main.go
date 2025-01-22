@@ -17,7 +17,7 @@ import (
 var (
 	vmProfile             = flag.String("vm-profile", "", "vm profile config")
 	analyzer              = flag.String("analyzer", "opcode", "analyzer to run. Options: opcode, syscall")
-	mode                  = flag.String("mode", "binary", "mode to run. Options: mips")
+	mode                  = flag.String("mode", "binary", "mode to run. Options: binary, source")
 	disassemblyOutputPath = flag.String("disassembly-output-path", "", "output file path for opcode assembly code. optional. only specify if you want to write assembly code to a file")
 )
 
