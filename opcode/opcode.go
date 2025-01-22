@@ -1,24 +1,26 @@
 package opcode
 
-type Arch int64
-
-const (
-	ArchMIPS32Bit Arch = iota + 1
-	ArchMIPS64Bit
+import (
+	"github.com/ChainSafe/vm-compat/opcode/common"
+	"github.com/ChainSafe/vm-compat/profile"
 )
 
-type Instruction struct {
-	Address        string
-	InstructionHex string
-	Opcode         uint64
-	Args           []string
-}
-
 type Provider interface {
-	ParseOpcode(line string) (*Instruction, error)
+	ParseAssembly(line string) (*common.Instruction, error)
 	IsAllowedOpcode(code uint64) bool
 }
 
 type Analyzer interface {
-	AnalyzeOpcodes(path string) error
+	Run(path string) error
+}
+
+func AnalyseOpcodes(profile *profile.VMProfile, paths ...string) error {
+	analysisProvider := NewAnalyzer(profile)
+	for _, path := range paths {
+		err := analysisProvider.Run(path)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

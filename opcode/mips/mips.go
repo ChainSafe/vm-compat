@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ChainSafe/vm-compat/opcode"
+	"github.com/ChainSafe/vm-compat/opcode/common"
 	"github.com/ChainSafe/vm-compat/profile"
 )
 
@@ -15,15 +15,15 @@ const (
 )
 
 type Provider struct {
-	Arch    opcode.Arch
+	Arch    common.Arch
 	profile *profile.VMProfile
 }
 
-func NewProvider(arch opcode.Arch, profile *profile.VMProfile) *Provider {
+func NewProvider(arch common.Arch, profile *profile.VMProfile) *Provider {
 	return &Provider{Arch: arch, profile: profile}
 }
 
-func (p *Provider) ParseOpcode(line string) (*opcode.Instruction, error) {
+func (p *Provider) ParseAssembly(line string) (*common.Instruction, error) {
 	instructionDetected, err := parseASMLine(line)
 	if err != nil {
 		fmt.Printf("Error parsing line: %s: %v\n", line, err)
@@ -47,7 +47,7 @@ func (p *Provider) IsAllowedOpcode(code uint64) bool {
 	return false
 }
 
-func parseASMLine(line string) (*opcode.Instruction, error) {
+func parseASMLine(line string) (*common.Instruction, error) {
 	asmLineRe := regexp.MustCompile(mipsAsmRegex)
 	line = strings.TrimSpace(line)
 
@@ -57,7 +57,7 @@ func parseASMLine(line string) (*opcode.Instruction, error) {
 			return nil, fmt.Errorf("failed to parse opcode hex: %w", err)
 		}
 
-		ins := &opcode.Instruction{
+		ins := &common.Instruction{
 			Address:        matches[1],
 			InstructionHex: matches[4],
 			Opcode:         hexNumber,

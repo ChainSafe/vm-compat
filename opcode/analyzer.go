@@ -1,4 +1,4 @@
-package analyzer
+package opcode
 
 import (
 	"bufio"
@@ -6,20 +6,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ChainSafe/vm-compat/opcode"
+	"github.com/ChainSafe/vm-compat/opcode/common"
 	"github.com/ChainSafe/vm-compat/opcode/mips"
 	"github.com/ChainSafe/vm-compat/profile"
 )
 
-type Opcode struct {
+type opcode struct {
 	Profile *profile.VMProfile
 }
 
-func NewAnalyzer(profile *profile.VMProfile) opcode.Analyzer {
-	return &Opcode{Profile: profile}
+func NewAnalyzer(profile *profile.VMProfile) Analyzer {
+	return &opcode{Profile: profile}
 }
 
-func (a *Opcode) AnalyzeOpcodes(path string) error {
+func (a *opcode) Run(path string) error {
 	// return the absolute path of the given path
 	fpath, err := filepath.Abs(path)
 	if err != nil {
@@ -43,7 +43,7 @@ func (a *Opcode) AnalyzeOpcodes(path string) error {
 	scanner := bufio.NewScanner(codefile)
 	for scanner.Scan() {
 		line := scanner.Text()
-		instructionDetected, err := opcodeAnalyzerProvider.ParseOpcode(line)
+		instructionDetected, err := opcodeAnalyzerProvider.ParseAssembly(line)
 		if err != nil {
 			fmt.Printf("Error parsing line: %s: %v\n", line, err)
 			return err
@@ -60,12 +60,12 @@ func (a *Opcode) AnalyzeOpcodes(path string) error {
 	return nil
 }
 
-func newProvider(arch string, prof *profile.VMProfile) (opcode.Provider, error) {
+func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {
 	switch arch {
 	case "mips32":
-		return mips.NewProvider(opcode.ArchMIPS32Bit, prof), nil
+		return mips.NewProvider(common.ArchMIPS32Bit, prof), nil
 	case "mips64":
-		return mips.NewProvider(opcode.ArchMIPS64Bit, prof), nil
+		return mips.NewProvider(common.ArchMIPS64Bit, prof), nil
 	default:
 		return nil, fmt.Errorf("unsupported architecture: %d", arch)
 	}
