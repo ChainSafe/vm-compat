@@ -52,6 +52,9 @@ func main() {
 	switch *analyzer {
 	case "opcode":
 		err = analyzeOpcode(profile, args...)
+		if err != nil {
+			panic(err)
+		}
 	case "syscall":
 		err = analysis.AnalyseSyscalls(profile, args...)
 		if err != nil {
