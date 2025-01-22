@@ -9,9 +9,19 @@ import (
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
 	VMName             string   `json:"vm"`
-	Arch               string   `json:"arch"`
+	GOOS               string   `json:"goos"`
+	GoArch             string   `json:"GOARCH"`
 	AllowedOpcodes     []string `json:"allowed_opcodes"`
 	RestrictedSyscalls []string `json:"restricted_syscalls"`
+}
+
+func (p *VMProfile) SetDefaults() {
+	if p.GOOS == "" {
+		p.GOOS = "linux"
+	}
+	if p.GoArch == "" {
+		p.GoArch = "mips"
+	}
 }
 
 // LoadProfile loads a VM profile from a JSON file.
