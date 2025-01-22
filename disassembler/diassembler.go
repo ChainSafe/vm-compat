@@ -1,11 +1,5 @@
 package disassembler
 
-import (
-	"errors"
-
-	"github.com/ChainSafe/vm-compat/disassembler/objdump"
-)
-
 type Source int64
 
 const (
@@ -22,12 +16,3 @@ type Type int64
 const (
 	TypeObjdump Type = iota + 1
 )
-
-func NewDisassembler(typ Type, os, arch string) (Disassembler, error) {
-	switch typ {
-	case TypeObjdump:
-		return objdump.New(os, arch), nil
-	default:
-		return nil, errors.New("disassembler not supported")
-	}
-}

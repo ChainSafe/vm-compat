@@ -10,6 +10,7 @@ import (
 
 	"github.com/ChainSafe/vm-compat/analysis"
 	"github.com/ChainSafe/vm-compat/disassembler"
+	"github.com/ChainSafe/vm-compat/disassembler/manager"
 	"github.com/ChainSafe/vm-compat/opcode"
 	"github.com/ChainSafe/vm-compat/profile"
 )
@@ -65,7 +66,7 @@ func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {
 		return fmt.Errorf("no paths provided for opcode analysis")
 	}
 
-	dis, err := disassembler.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GoArch)
+	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GoArch)
 	if err != nil {
 		return err
 	}
