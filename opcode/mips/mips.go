@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// TODO: the regex is currently according to objdump tool we are using. This should be updated according to the tool used.
 	mipsAsmRegex = "^\\s*([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s*([a-z]*)\\s*(.*)"
 )
 
