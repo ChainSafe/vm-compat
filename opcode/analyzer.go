@@ -62,7 +62,7 @@ func (a *opcode) Run(path string) error {
 
 func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {
 	switch arch {
-	case "mips32":
+	case "mips":
 		return mips.NewProvider(common.ArchMIPS32Bit, prof), nil
 	case "mips64":
 		return mips.NewProvider(common.ArchMIPS64Bit, prof), nil
