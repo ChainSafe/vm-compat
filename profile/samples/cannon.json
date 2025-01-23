@@ -3,10 +3,10 @@
   "goos": "linux",
   "goarch": "mips",
   "allowed_opcodes": [
-      "Add",
-      "Sub",
-      "Mul",
-      "Div"
+      "0x08",
+      "0x09",
+      "0x0C",
+      "0x04"
   ],
   "allowed_syscalls": [
       4090,
