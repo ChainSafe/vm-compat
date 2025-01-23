@@ -1,4 +1,4 @@
-package analysis
+package syscall
 
 import (
 	"fmt"
@@ -63,14 +63,11 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 			switch packagePath {
 			case "syscall":
 				if callee.Name() == "RawSyscall6" {
-					fmt.Println("---------------------------------")
-					fmt.Printf("From: %s\n", edge.Caller.Func)
 					calls := traceSyscalls(nil, edge)
-					fmt.Printf("SYSCODES: %v \n", calls)
 					syscalls = append(syscalls, calls...)
 				}
 			case "unix":
-
+				// TODO: handle unix syscall
 			default:
 			}
 		}
@@ -80,7 +77,6 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 		return err
 	}
 
-	fmt.Println("---------------")
 	for _, sycall := range syscalls {
 		if !slices.Contains(profile.AllowedSycalls, sycall) {
 			fmt.Println("Restricted syscall detected:", sycall)
