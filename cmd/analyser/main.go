@@ -70,7 +70,7 @@ func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {
 		return fmt.Errorf("no paths provided for opcode analysis")
 	}
 
-	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GoArch)
+	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
 		return err
 	}

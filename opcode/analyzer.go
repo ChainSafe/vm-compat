@@ -34,7 +34,7 @@ func (a *opcode) Run(path string) error {
 	}
 	defer codefile.Close()
 
-	opcodeAnalyzerProvider, err := newProvider(a.Profile.GoArch, a.Profile)
+	opcodeAnalyzerProvider, err := newProvider(a.Profile.GOARCH, a.Profile)
 	if err != nil {
 		fmt.Printf("Error getting provider: %v\n", err)
 		return err
