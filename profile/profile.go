@@ -9,19 +9,19 @@ import (
 
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
-	VMName             string   `json:"vm"`
-	GOOS               string   `json:"goos"`
-	GoArch             string   `json:"goarch"`
-	AllowedOpcodes     []string `json:"allowed_opcodes"`
-	RestrictedSyscalls []string `json:"restricted_syscalls"`
+	VMName         string   `json:"vm"`
+	GOOS           string   `json:"goos"`
+	GOARCH         string   `json:"goarch"`
+	AllowedOpcodes []string `json:"allowed_opcodes"`
+	AllowedSycalls []int    `json:"allowed_syscalls"`
 }
 
 func (p *VMProfile) SetDefaults() {
 	if p.GOOS == "" {
 		p.GOOS = "linux"
 	}
-	if p.GoArch == "" {
-		p.GoArch = "mips"
+	if p.GOARCH == "" {
+		p.GOARCH = "mips"
 	}
 }
 

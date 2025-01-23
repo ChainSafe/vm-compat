@@ -8,18 +8,24 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ChainSafe/vm-compat/analysis"
 	"github.com/ChainSafe/vm-compat/disassembler"
 	"github.com/ChainSafe/vm-compat/disassembler/manager"
 	"github.com/ChainSafe/vm-compat/opcode"
 	"github.com/ChainSafe/vm-compat/profile"
+	"github.com/ChainSafe/vm-compat/syscall"
 )
 
 var (
-	vmProfile             = flag.String("vm-profile", "", "vm profile config")
-	analyzer              = flag.String("analyzer", "opcode", "analyzer to run. Options: opcode, syscall")
-	mode                  = flag.String("mode", "binary", "mode to run. only required for mode `opcode`. Options: binary, source")
-	disassemblyOutputPath = flag.String("disassembly-output-path", "", "output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
+	vmProfile = flag.String("vm-profile", "", "vm profile config")
+	analyzer  = flag.String("analyzer", "opcode", "analyzer to run. Options: opcode, syscall")
+	mode      = flag.String(
+		"mode",
+		"binary",
+		"mode to run. only required for mode `opcode`. Options: binary, source")
+	disassemblyOutputPath = flag.String(
+		"disassembly-output-path",
+		"",
+		"output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
 )
 
 const usage = `
@@ -56,7 +62,7 @@ func main() {
 			panic(err)
 		}
 	case "syscall":
-		err = analysis.AnalyseSyscalls(profile, args...)
+		err = syscall.AnalyseSyscalls(profile, args...)
 		if err != nil {
 			panic(err)
 		}
@@ -70,14 +76,14 @@ func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {
 		return fmt.Errorf("no paths provided for opcode analysis")
 	}
 
-	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GoArch)
+	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
 		return err
 	}
 
 	if *disassemblyOutputPath == "" {
 		// add a temporary path to write the disassembly output
-		*disassemblyOutputPath = filepath.Join(os.TempDir(), "temp_assembly_ouput")
+		*disassemblyOutputPath = filepath.Join(os.TempDir(), "temp_assembly_output")
 		defer os.Remove(*disassemblyOutputPath)
 	}
 

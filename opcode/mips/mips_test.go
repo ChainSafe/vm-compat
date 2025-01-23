@@ -15,7 +15,7 @@ func TestMips(t *testing.T) {
 
 	instruction, err := provider.ParseAssembly("11000:\t8fc10008 \tlw\tat,8(s8)")
 	if err != nil {
-		t.Fatalf("failed to analyse opcodes: %v", err)
+		t.Fatalf("failed to analyze opcodes: %v", err)
 	}
 
 	if instruction == nil {
@@ -24,7 +24,7 @@ func TestMips(t *testing.T) {
 
 	instruction, err = provider.ParseAssembly("1100c:\t00000000 \tnop")
 	if err != nil {
-		t.Fatalf("failed to analyse opcodes: %v", err)
+		t.Fatalf("failed to analyze opcodes: %v", err)
 	}
 
 	if instruction == nil {

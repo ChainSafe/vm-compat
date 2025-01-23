@@ -50,7 +50,6 @@ func (o *Objdump) Disassemble(mode disassembler.Source, target string, outputPat
 		return fmt.Sprintf("disassembly written to %s", outputPath), nil
 	}
 	return disassembly, nil
-
 }
 
 func generateSourceAssembly(target string, goos, arch string) (string, error) {
