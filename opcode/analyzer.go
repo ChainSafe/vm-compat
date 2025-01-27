@@ -41,6 +41,7 @@ func (a *opcode) Run(path string) error {
 	}
 
 	scanner := bufio.NewScanner(codefile)
+	invalidOpcodeDetected := make(map[uint64]bool)
 	for scanner.Scan() {
 		line := scanner.Text()
 		instructionDetected, err := opcodeAnalyzerProvider.ParseAssembly(line)
@@ -54,7 +55,10 @@ func (a *opcode) Run(path string) error {
 		}
 
 		if !opcodeAnalyzerProvider.IsAllowedOpcode(instructionDetected.Opcode) {
-			fmt.Println("Incompatible Opcode Detected: ", fmt.Sprintf("0x%x", instructionDetected.Opcode))
+			if !invalidOpcodeDetected[instructionDetected.Opcode] {
+				fmt.Println("Incompatible Opcode Detected: ", fmt.Sprintf("0x%x", instructionDetected.Opcode))
+			}
+			invalidOpcodeDetected[instructionDetected.Opcode] = true
 		}
 	}
 	return nil
