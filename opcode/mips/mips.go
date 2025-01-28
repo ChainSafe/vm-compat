@@ -36,7 +36,7 @@ func (p *Provider) ParseAssembly(line string) (*common.Instruction, error) {
 // IsAllowedOpcode checks if the given function is in the allowed opcodes.
 func (p *Provider) IsAllowedOpcode(code uint64) bool {
 	for _, op := range p.profile.AllowedOpcodes {
-		i, err := strconv.ParseUint(op, 0, 64) // auto detect base
+		i, err := strconv.ParseUint(op, 0, 32) // auto detect base
 		if err != nil {
 			fmt.Printf("Error parsing opcode hex string from vmprofile: %s: %v\n", op, err)
 			return false

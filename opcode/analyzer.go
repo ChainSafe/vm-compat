@@ -34,7 +34,7 @@ func (a *opcode) Run(path string) error {
 	}
 	defer codefile.Close()
 
-	opcodeAnalyzerProvider, err := newProvider(a.Profile.GOARCH, a.Profile)
+	opcodeAnalyzerProvider, err := newProvider(a.Profile.ProfileArch, a.Profile)
 	if err != nil {
 		fmt.Printf("Error getting provider: %v\n", err)
 		return err
@@ -66,7 +66,7 @@ func (a *opcode) Run(path string) error {
 
 func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {
 	switch arch {
-	case "mips":
+	case "mips32":
 		return mips.NewProvider(common.ArchMIPS32Bit, prof), nil
 	case "mips64":
 		return mips.NewProvider(common.ArchMIPS64Bit, prof), nil
