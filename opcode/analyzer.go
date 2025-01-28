@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/opcode/common"
 	"github.com/ChainSafe/vm-compat/opcode/mips"
 	"github.com/ChainSafe/vm-compat/profile"
@@ -15,38 +16,39 @@ type opcode struct {
 	Profile *profile.VMProfile
 }
 
-func NewAnalyzer(profile *profile.VMProfile) Analyzer {
+func NewAnalyzer(profile *profile.VMProfile) analyser.Analyser {
 	return &opcode{Profile: profile}
 }
 
-func (a *opcode) Run(path string) error {
+func (a *opcode) Analyze(path string) ([]analyser.Issue, error) {
 	// return the absolute path of the given path
 	fpath, err := filepath.Abs(path)
 	if err != nil {
 		fmt.Printf("Error getting the absolute filepath: %s: %v\n", path, err)
-		return err
+		return nil, err
 	}
 
 	codefile, err := os.Open(fpath)
 	if err != nil {
 		fmt.Printf("Error opening filepath: %s: %v\n", fpath, err)
-		return err
+		return nil, err
 	}
 	defer codefile.Close()
 
 	opcodeAnalyzerProvider, err := newProvider(a.Profile.GOARCH, a.Profile)
 	if err != nil {
 		fmt.Printf("Error getting provider: %v\n", err)
-		return err
+		return nil, err
 	}
 
 	scanner := bufio.NewScanner(codefile)
+	issues := []analyser.Issue{}
 	for scanner.Scan() {
 		line := scanner.Text()
 		instructionDetected, err := opcodeAnalyzerProvider.ParseAssembly(line)
 		if err != nil {
 			fmt.Printf("Error parsing line: %s: %v\n", line, err)
-			return err
+			return nil, err
 		}
 
 		if instructionDetected == nil {
@@ -54,10 +56,12 @@ func (a *opcode) Run(path string) error {
 		}
 
 		if !opcodeAnalyzerProvider.IsAllowedOpcode(instructionDetected.Opcode) {
-			fmt.Println("Incompatible Opcode Detected: ", fmt.Sprintf("0x%x", instructionDetected.Opcode))
+			issues = append(issues, analyser.Issue{
+				Message: fmt.Sprintf("Incompatible Opcode Detected: 0x%x", instructionDetected.Opcode),
+			})
 		}
 	}
-	return nil
+	return issues, nil
 }
 
 func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/profile"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -15,7 +16,7 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
+func AnalyseSyscalls(profile *profile.VMProfile, path string) ([]analyser.Issue, error) {
 	cfg := &packages.Config{
 		Mode:       packages.LoadAllSyntax,
 		BuildFlags: []string{},
@@ -26,12 +27,12 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 		),
 	}
 
-	initial, err := packages.Load(cfg, paths...)
+	initial, err := packages.Load(cfg, path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if packages.PrintErrors(initial) > 0 {
-		return fmt.Errorf("packages contain errors")
+		return nil, fmt.Errorf("packages contain errors")
 	}
 
 	// Create and build SSA-form program representation.
@@ -43,7 +44,7 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 
 	mains, err := mainPackages(prog.AllPackages())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	roots := make([]*ssa.Function, 0)
 	for _, main := range mains {
@@ -74,16 +75,19 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	issues := []analyser.Issue{}
 	for _, sycall := range syscalls {
 		if !slices.Contains(profile.AllowedSycalls, sycall) {
-			fmt.Println("Restricted syscall detected:", sycall)
+			issues = append(issues, analyser.Issue{
+				Message: fmt.Sprintf("Restricted syscall detected: %s", sycall),
+			})
 		}
 	}
 
-	return nil
+	return issues, nil
 }
 
 func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
