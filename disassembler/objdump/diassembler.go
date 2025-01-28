@@ -14,7 +14,7 @@ type Objdump struct {
 	GOOS string
 }
 
-func New(arch, goos string) *Objdump {
+func New(goos, arch string) *Objdump {
 	return &Objdump{
 		Arch: arch,
 		GOOS: goos,
