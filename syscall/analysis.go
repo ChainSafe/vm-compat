@@ -66,6 +66,8 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 					calls := traceSyscalls(nil, edge)
 					syscalls = append(syscalls, calls...)
 				}
+			case "unix":
+				// TODO: handle unix syscall
 			default:
 			}
 		}
@@ -77,10 +79,6 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 
 	for _, sycall := range syscalls {
 		if !slices.Contains(profile.AllowedSycalls, sycall) {
-			if slices.Contains(profile.NOOPSyscalls, sycall) {
-				fmt.Println("Noop syscall detected:", sycall)
-				continue
-			}
 			fmt.Println("Restricted syscall detected:", sycall)
 		}
 	}

@@ -14,7 +14,6 @@ type VMProfile struct {
 	GOARCH         string   `json:"goarch"`
 	AllowedOpcodes []string `json:"allowed_opcodes"`
 	AllowedSycalls []int    `json:"allowed_syscalls"`
-	NOOPSyscalls   []int    `json:"noop_syscalls"`
 }
 
 func (p *VMProfile) SetDefaults() {
