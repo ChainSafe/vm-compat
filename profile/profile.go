@@ -12,7 +12,6 @@ type VMProfile struct {
 	VMName         string   `json:"vm"`
 	GOOS           string   `json:"goos"`
 	GOARCH         string   `json:"goarch"`
-	ProfileArch    string   `json:"profile_arch"`
 	AllowedOpcodes []string `json:"allowed_opcodes"`
 	AllowedSycalls []int    `json:"allowed_syscalls"`
 }

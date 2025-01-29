@@ -2,7 +2,6 @@
   "vm": "Cannon",
   "goos": "linux",
   "goarch": "mips",
-  "profile_arch": "mips32",
   "allowed_opcodes": [
     "0x20",
     "0x21",

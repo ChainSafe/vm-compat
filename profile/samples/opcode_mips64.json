@@ -1,8 +1,7 @@
 {
   "vm": "Cannon",
   "goos": "linux",
-  "goarch": "mips",
-  "profile_arch": "mips64",
+  "goarch": "mips64",
   "allowed_opcodes": [
     "0x20",
     "0x21",
