@@ -1,6 +1,6 @@
 GOLANGCI := $(GOPATH)/bin/golangci-lint
 
-.PHONY: build-analyzer
+.PHONY: build-analyser
 build-analyser:
 	go build -o ./bin/analyser ./cmd/analyser/main.go
 
