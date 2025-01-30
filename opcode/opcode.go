@@ -7,7 +7,7 @@ import (
 
 type Provider interface {
 	ParseAssembly(line string) (*common.Instruction, error)
-	IsAllowedOpcode(code uint64) bool
+	IsAllowedOpcode(code, funct uint64) bool
 }
 
 type Analyzer interface {

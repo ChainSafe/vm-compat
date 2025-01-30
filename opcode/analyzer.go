@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/ChainSafe/vm-compat/opcode/common"
 	"github.com/ChainSafe/vm-compat/opcode/mips"
@@ -54,9 +55,10 @@ func (a *opcode) Run(path string) error {
 			continue
 		}
 
-		if !opcodeAnalyzerProvider.IsAllowedOpcode(instructionDetected.Opcode) {
+		if !opcodeAnalyzerProvider.IsAllowedOpcode(instructionDetected.Opcode, instructionDetected.Funct) {
 			if !invalidOpcodeDetected[instructionDetected.Opcode] {
-				fmt.Println("Incompatible Opcode Detected: ", fmt.Sprintf("0x%x", instructionDetected.Opcode))
+				fmt.Println("Invalid Opcode Detected---", line)
+				fmt.Printf("Incompatible Opcode Detected. Opcode: %s, fun: %s \n", fmt.Sprintf("0x%s", strconv.FormatInt(int64(instructionDetected.Opcode), 16)), fmt.Sprintf("0x%s", strconv.FormatInt(int64(instructionDetected.Funct), 16)))
 			}
 			invalidOpcodeDetected[instructionDetected.Opcode] = true
 		}
@@ -66,7 +68,7 @@ func (a *opcode) Run(path string) error {
 
 func newProvider(arch string, prof *profile.VMProfile) (Provider, error) {
 	switch arch {
-	case "mips":
+	case "mips32":
 		return mips.NewProvider(common.ArchMIPS32Bit, prof), nil
 	case "mips64":
 		return mips.NewProvider(common.ArchMIPS64Bit, prof), nil

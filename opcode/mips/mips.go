@@ -12,7 +12,7 @@ import (
 
 const (
 	// TODO: the regex is currently according to objdump tool we are using. This should be updated according to the tool used.
-	mipsAsmRegex = "^\\s*([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s*([a-z]*)\\s*(.*)"
+	mipsAsmRegex = "^\\s*([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s+([a-z]+)(\\s|\\n)*(.*)"
 )
 
 type Provider struct {
@@ -34,14 +34,29 @@ func (p *Provider) ParseAssembly(line string) (*common.Instruction, error) {
 }
 
 // IsAllowedOpcode checks if the given function is in the allowed opcodes.
-func (p *Provider) IsAllowedOpcode(code uint64) bool {
-	for _, op := range p.profile.AllowedOpcodes {
-		i, err := strconv.ParseUint(op, 0, 32) // auto detect base
+func (p *Provider) IsAllowedOpcode(opcode uint64, funct uint64) bool {
+	opcodeHex := fmt.Sprintf("0x%s", strconv.FormatInt(int64(opcode), 16))
+	allowedFunct, ok := p.profile.AllowedOpcodes[opcodeHex]
+	if !ok { // if opcode itself not found
+		return false
+	}
+	// check if dependent funct is allowed
+	if len(allowedFunct) > 0 {
+		return isAllowedFunctType(funct, allowedFunct)
+	}
+	// if no dependent functs, then opcode is allowed
+	return true
+}
+
+func isAllowedFunctType(funct uint64, allowedFuncts []string) bool {
+	for _, allowedFunct := range allowedFuncts {
+		i, err := strconv.ParseUint(allowedFunct, 0, 32) // auto detect base
 		if err != nil {
-			fmt.Printf("Error parsing opcode hex string from vmprofile: %s: %v\n", op, err)
+			fmt.Printf("Error parsing funct hex string from vmprofile: %s: %v\n", allowedFunct, err)
 			return false
 		}
-		if i == code {
+
+		if i == funct {
 			return true
 		}
 	}
@@ -53,7 +68,7 @@ func parseASMLine(line string) (*common.Instruction, error) {
 	line = strings.TrimSpace(line)
 
 	if matches := asmLineRe.FindStringSubmatch(line); len(matches) > 0 {
-		hexNumber, err := parseOpcodeHex(matches[3])
+		opCode, funct, err := parseOpcodeHex(matches[3])
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse opcode hex: %w", err)
 		}
@@ -61,7 +76,8 @@ func parseASMLine(line string) (*common.Instruction, error) {
 		ins := &common.Instruction{
 			Address:        matches[1],
 			InstructionHex: matches[4],
-			Opcode:         hexNumber,
+			Opcode:         opCode,
+			Funct:          funct,
 		}
 
 		if len(matches) > 5 {
@@ -107,17 +123,11 @@ func parseArgs(argsStr string) []string {
 	return args
 }
 
-func parseOpcodeHex(str string) (uint64, error) {
+func parseOpcodeHex(str string) (uint64, uint64, error) {
 	// parse the hex string to uint64
 	i, err := strconv.ParseUint(str, 16, 32)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-
-	fixSixBits := i >> 0x1A
-	if fixSixBits == 0 { // R Instruction
-		return i & 0x3F, nil // return last 6 bits
-	}
-
-	return i >> 0x1A, nil // return first 6 bits
+	return i >> 0x1A, i & 0x3F, nil // return first 6 and last 6 bits
 }
