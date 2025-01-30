@@ -57,7 +57,6 @@ func (a *opcode) Run(path string) error {
 
 		if !opcodeAnalyzerProvider.IsAllowedOpcode(instructionDetected.Opcode, instructionDetected.Funct) {
 			if !invalidOpcodeDetected[instructionDetected.Opcode] {
-				fmt.Println("Invalid Opcode Detected---", line)
 				fmt.Printf("Incompatible Opcode Detected. Opcode: %s, fun: %s \n", fmt.Sprintf("0x%s", strconv.FormatInt(int64(instructionDetected.Opcode), 16)), fmt.Sprintf("0x%s", strconv.FormatInt(int64(instructionDetected.Funct), 16)))
 			}
 			invalidOpcodeDetected[instructionDetected.Opcode] = true
