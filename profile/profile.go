@@ -22,7 +22,7 @@ func (p *VMProfile) SetDefaults() {
 		p.GOOS = "linux"
 	}
 	if p.GOARCH == "" {
-		p.GOARCH = "mips32"
+		p.GOARCH = "mips"
 	}
 }
 
