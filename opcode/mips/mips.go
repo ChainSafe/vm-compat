@@ -36,16 +36,27 @@ func (p *Provider) ParseAssembly(line string) (*common.Instruction, error) {
 // IsAllowedOpcode checks if the given function is in the allowed opcodes.
 func (p *Provider) IsAllowedOpcode(opcode uint64, funct uint64) bool {
 	opcodeHex := fmt.Sprintf("0x%s", strconv.FormatInt(int64(opcode), 16))
-	allowedFunct, ok := p.profile.AllowedOpcodes[opcodeHex]
-	if !ok { // if opcode itself not found
-		return false
+
+	for _, allowedOpcode := range p.profile.AllowedOpcodes {
+		if strings.ToLower(allowedOpcode.Opcode) == strings.ToLower(opcodeHex) {
+			if len(allowedOpcode.Funct) == 0 {
+				return true
+			}
+			return isAllowedFunctType(funct, allowedOpcode.Funct)
+		}
 	}
-	// check if dependent funct is allowed
-	if len(allowedFunct) > 0 {
-		return isAllowedFunctType(funct, allowedFunct)
-	}
-	// if no dependent functs, then opcode is allowed
-	return true
+
+	return false
+	//allowedFunct, ok := p.profile.AllowedOpcodes[opcodeHex]
+	//if !ok { // if opcode itself not found
+	//	return false
+	//}
+	//// check if dependent funct is allowed
+	//if len(allowedFunct) > 0 {
+	//	return isAllowedFunctType(funct, allowedFunct)
+	//}
+	//// if no dependent functs, then opcode is allowed
+	//return true
 }
 
 func isAllowedFunctType(funct uint64, allowedFuncts []string) bool {

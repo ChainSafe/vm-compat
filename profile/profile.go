@@ -1,20 +1,26 @@
 package profile
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
+
+type OpcodeInstruction struct {
+	Opcode string   `yaml:"opcode"`
+	Funct  []string `yaml:"funct"`
+}
 
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
-	VMName         string              `json:"vm"`
-	GOOS           string              `json:"goos"`
-	GOARCH         string              `json:"goarch"`
-	AllowedOpcodes map[string][]string `json:"allowed_opcodes"`
-	AllowedSycalls []int               `json:"allowed_syscalls"`
-	NOOPSyscalls   []int               `json:"noop_syscalls"`
+	VMName         string              `yaml:"vm"`
+	GOOS           string              `yaml:"goos"`
+	GOARCH         string              `yaml:"goarch"`
+	AllowedOpcodes []OpcodeInstruction `yaml:"allowed_opcodes"`
+	AllowedSycalls []int               `yaml:"allowed_syscalls"`
+	NOOPSyscalls   []int               `yaml:"noop_syscalls"`
 }
 
 func (p *VMProfile) SetDefaults() {
@@ -40,7 +46,7 @@ func LoadProfile(filename string) (*VMProfile, error) {
 	defer file.Close()
 
 	var profile VMProfile
-	if err := json.NewDecoder(file).Decode(&profile); err != nil {
+	if err = yaml.NewDecoder(file).Decode(&profile); err != nil {
 		return nil, fmt.Errorf("failed to parse profile: %w", err)
 	}
 	return &profile, nil
