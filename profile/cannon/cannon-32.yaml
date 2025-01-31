@@ -1,0 +1,115 @@
+vm: Cannon
+goos: linux
+goarch: mips32
+allowed_opcodes:
+  - opcode: '0x2'
+    funct: []
+  - opcode: '0x3'
+    funct: []
+  - opcode: '0x4'
+    funct: []
+  - opcode: '0x5'
+    funct: []
+  - opcode: '0x6'
+    funct: []
+  - opcode: '0x7'
+    funct: []
+  - opcode: '0x1'
+    funct: []
+  - opcode: '0x1a'
+    funct: []
+  - opcode: '0x1b'
+    funct: []
+  - opcode: '0x0'
+    funct:
+      - '0x00'
+      - '0x02'
+      - '0x03'
+      - '0x04'
+      - '0x06'
+      - '0x07'
+      - '0x08'
+      - '0x09'
+      - '0x0a'
+      - '0x0b'
+      - '0x0c'
+      - '0x0f'
+      - '0x10'
+      - '0x11'
+      - '0x12'
+      - '0x13'
+      - '0x18'
+      - '0x19'
+      - '0x1a'
+      - '0x1b'
+      - '0x20'
+      - '0x21'
+      - '0x22'
+      - '0x23'
+      - '0x24'
+      - '0x25'
+      - '0x26'
+      - '0x27'
+      - '0x2a'
+      - '0x2b'
+      - '0xa'
+      - '0xb'
+      - '0xc'
+  - opcode: '0x8'
+    funct: []
+  - opcode: '0x9'
+    funct: []
+  - opcode: '0xa'
+    funct: []
+  - opcode: '0xb'
+    funct: []
+  - opcode: '0xc'
+    funct: []
+  - opcode: '0xd'
+    funct: []
+  - opcode: '0xe'
+    funct: []
+  - opcode: '0x1c'
+    funct:
+      - '0x2'
+      - '0x20'
+      - '0x21'
+  - opcode: '0xf'
+    funct: []
+  - opcode: '0x20'
+    funct: []
+  - opcode: '0x21'
+    funct: []
+  - opcode: '0x22'
+    funct: []
+  - opcode: '0x23'
+    funct: []
+  - opcode: '0x24'
+    funct: []
+  - opcode: '0x25'
+    funct: []
+  - opcode: '0x26'
+    funct: []
+  - opcode: '0x28'
+    funct: []
+  - opcode: '0x29'
+    funct: []
+  - opcode: '0x2a'
+    funct: []
+  - opcode: '0x2b'
+    funct: []
+  - opcode: '0x2e'
+    funct: []
+  - opcode: '0x30'
+    funct: []
+  - opcode: '0x38'
+    funct: []
+allowed_syscalls:
+  - 4090
+  - 4045
+  - 4120
+  - 4246
+  - 4003
+  - 4004
+  - 4055
+noop_syscalls: []
