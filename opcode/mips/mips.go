@@ -47,16 +47,6 @@ func (p *Provider) IsAllowedOpcode(opcode uint64, funct uint64) bool {
 	}
 
 	return false
-	//allowedFunct, ok := p.profile.AllowedOpcodes[opcodeHex]
-	//if !ok { // if opcode itself not found
-	//	return false
-	//}
-	//// check if dependent funct is allowed
-	//if len(allowedFunct) > 0 {
-	//	return isAllowedFunctType(funct, allowedFunct)
-	//}
-	//// if no dependent functs, then opcode is allowed
-	//return true
 }
 
 func isAllowedFunctType(funct uint64, allowedFuncts []string) bool {
