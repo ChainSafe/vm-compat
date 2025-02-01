@@ -5,14 +5,6 @@ type Parser interface {
 	Parse(path string) (CallGraph, error)
 }
 
-// LineType represents the type of parsed line
-type LineType int
-
-const (
-	LineTypeSegmentStart LineType = iota // Represents a function/block start
-	LineTypeInstruction                  // Represents an assembly instruction
-)
-
 // InstructionType defines MIPS instruction categories
 type InstructionType string
 
@@ -27,7 +19,9 @@ type Instruction interface {
 	Type() InstructionType
 	Address() string
 	Opcode() string
+	Funct() string
 	Mnemonic() string
+	IsSyscall() bool
 }
 
 type Segment interface {

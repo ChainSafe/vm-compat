@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/profile"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -15,23 +16,31 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
+type goSyscallAnalyser struct {
+	profile *profile.VMProfile
+}
+
+func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyser {
+	return &goSyscallAnalyser{profile: profile}
+}
+
+func (a *goSyscallAnalyser) Analyse(path string) ([]*analyser.Issue, error) {
 	cfg := &packages.Config{
 		Mode:       packages.LoadAllSyntax,
 		BuildFlags: []string{},
 		Env: append(
 			os.Environ(),
-			fmt.Sprintf("GOOS=%s", profile.GOOS),
-			fmt.Sprintf("GOARCH=%s", profile.GOARCH),
+			fmt.Sprintf("GOOS=%s", a.profile.GOOS),
+			fmt.Sprintf("GOARCH=%s", a.profile.GOARCH),
 		),
 	}
 
-	initial, err := packages.Load(cfg, paths...)
+	initial, err := packages.Load(cfg, path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if packages.PrintErrors(initial) > 0 {
-		return fmt.Errorf("packages contain errors")
+		return nil, fmt.Errorf("packages contain errors")
 	}
 
 	// Create and build SSA-form program representation.
@@ -43,7 +52,7 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 
 	mains, err := mainPackages(prog.AllPackages())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	roots := make([]*ssa.Function, 0)
 	for _, main := range mains {
@@ -72,20 +81,20 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	issues := []*analyser.Issue{}
 	for _, sycall := range syscalls {
-		if !slices.Contains(profile.AllowedSycalls, sycall) {
-			if slices.Contains(profile.NOOPSyscalls, sycall) {
-				fmt.Println("Noop syscall detected:", sycall)
-				continue
-			}
-			fmt.Println("Restricted syscall detected:", sycall)
+		if !slices.Contains(a.profile.AllowedSycalls, sycall) {
+			// TODO: add others details
+			issues = append(issues, &analyser.Issue{
+				Message: fmt.Sprintf("Restricted syscall detected: %s", sycall),
+			})
 		}
 	}
 
-	return nil
+	return issues, nil
 }
 
 func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {

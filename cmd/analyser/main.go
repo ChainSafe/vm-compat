@@ -8,10 +8,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/disassembler"
 	"github.com/ChainSafe/vm-compat/disassembler/manager"
 	"github.com/ChainSafe/vm-compat/opcode"
 	"github.com/ChainSafe/vm-compat/profile"
+	"github.com/ChainSafe/vm-compat/renderer"
 	"github.com/ChainSafe/vm-compat/syscall"
 )
 
@@ -26,6 +28,7 @@ var (
 		"disassembly-output-path",
 		"",
 		"output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
+	format = flag.String("format", "text", "format of the output. Options: json, text")
 )
 
 const usage = `
@@ -45,7 +48,7 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	if len(args) == 0 {
+	if len(args) != 1 {
 		fmt.Fprint(os.Stderr, usage)
 		return
 	}
@@ -55,30 +58,42 @@ func main() {
 		log.Fatalf("Error loading profile: %v", err)
 	}
 
+	var issues []analyser.Issue
 	switch *analyzer {
 	case "opcode":
-		err = analyzeOpcode(profile, args...)
+		issues, err = analyzeOpcode(profile, args[0])
 		if err != nil {
-			panic(err)
+			log.Fatalf("Unable to analyze Opcode: %s", err)
 		}
 	case "syscall":
-		err = syscall.AnalyseSyscalls(profile, args...)
+		issues, err = syscall.AnalyseSyscalls(profile, args[0])
 		if err != nil {
-			panic(err)
+			log.Fatalf("Unable to analyze Syscalls: %s", err)
 		}
 	default:
 		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
+
+	switch *format {
+	case "text":
+		err = renderer.NewTextRenderer().Render(issues, os.Stdout)
+		if err != nil {
+			log.Fatalf("Unable to render: %s", err)
+		}
+	case "json":
+		err = renderer.NewJSONRenderer().Render(issues, os.Stdout)
+		if err != nil {
+			log.Fatalf("Unable to render: %s", err)
+		}
+	default:
+		log.Fatalf("Invalid format: %s", *format)
+	}
 }
 
-func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {
-	if len(paths) == 0 {
-		return fmt.Errorf("no paths provided for opcode analysis")
-	}
-
+func analyzeOpcode(profile *profile.VMProfile, paths string) ([]analyser.Issue, error) {
 	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if *disassemblyOutputPath == "" {
@@ -89,14 +104,14 @@ func analyzeOpcode(profile *profile.VMProfile, paths ...string) error {
 
 	switch *mode {
 	case "binary":
-		_, err = dis.Disassemble(disassembler.SourceBinary, paths[0], *disassemblyOutputPath)
+		_, err = dis.Disassemble(disassembler.SourceBinary, paths, *disassemblyOutputPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	case "source":
-		_, err = dis.Disassemble(disassembler.SourceFile, paths[0], *disassemblyOutputPath)
+		_, err = dis.Disassemble(disassembler.SourceFile, paths, *disassemblyOutputPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
