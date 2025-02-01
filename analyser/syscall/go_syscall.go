@@ -16,15 +16,18 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
+// goSyscallAnalyser analyzes system calls in Go binaries.
 type goSyscallAnalyser struct {
 	profile *profile.VMProfile
 }
 
-func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyser {
+// NewGOSyscallAnalyser initializes an analyser for Go syscalls.
+func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
 	return &goSyscallAnalyser{profile: profile}
 }
 
-func (a *goSyscallAnalyser) Analyse(path string) ([]*analyser.Issue, error) {
+// Analyze scans a Go binary for syscalls and detects compatibility issues.
+func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 	cfg := &packages.Config{
 		Mode:       packages.LoadAllSyntax,
 		BuildFlags: []string{},
@@ -44,12 +47,11 @@ func (a *goSyscallAnalyser) Analyse(path string) ([]*analyser.Issue, error) {
 	}
 
 	// Create and build SSA-form program representation.
-	mode := ssa.InstantiateGenerics // instantiate generics by default for soundness
+	mode := ssa.InstantiateGenerics
 	prog, _ := ssautil.AllPackages(initial, mode)
 	prog.Build()
 
-	// -- rta call graph construction ------------------------------------------
-
+	// Construct call graph using RTA analysis.
 	mains, err := mainPackages(prog.AllPackages())
 	if err != nil {
 		return nil, err
@@ -63,19 +65,15 @@ func (a *goSyscallAnalyser) Analyse(path string) ([]*analyser.Issue, error) {
 	cg := rta.Analyze(roots, true).CallGraph
 	cg.DeleteSyntheticNodes()
 
-	// Analyze the call graph for syscalls
+	// Analyze call graph for syscalls.
 	syscalls := make([]int, 0)
 	err = callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
 		callee := edge.Callee.Func
 		if callee != nil && callee.Pkg != nil && callee.Pkg.Pkg != nil {
 			packagePath := callee.Pkg.Pkg.Path()
-			switch packagePath {
-			case "syscall":
-				if callee.Name() == "RawSyscall6" {
-					calls := traceSyscalls(nil, edge)
-					syscalls = append(syscalls, calls...)
-				}
-			default:
+			if packagePath == "syscall" && callee.Name() == "RawSyscall6" {
+				calls := traceSyscalls(nil, edge)
+				syscalls = append(syscalls, calls...)
 			}
 		}
 		return nil
@@ -84,14 +82,23 @@ func (a *goSyscallAnalyser) Analyse(path string) ([]*analyser.Issue, error) {
 		return nil, err
 	}
 
+	// Check against allowed syscalls.
 	issues := []*analyser.Issue{}
-	for _, sycall := range syscalls {
-		if !slices.Contains(a.profile.AllowedSycalls, sycall) {
-			// TODO: add others details
-			issues = append(issues, &analyser.Issue{
-				Message: fmt.Sprintf("Restricted syscall detected: %s", sycall),
-			})
+	for _, syscallNum := range syscalls {
+		// Categorize syscall
+		if slices.Contains(a.profile.AllowedSycalls, syscallNum) {
+			continue
 		}
+
+		message := fmt.Sprintf("Incompatible Syscall Detected: 0x%x", syscallNum)
+		if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
+			message = fmt.Sprintf("NOOP Syscall Detected: 0x%x", syscallNum)
+		}
+
+		issues = append(issues, &analyser.Issue{
+			File:    path,
+			Message: message,
+		})
 	}
 
 	return issues, nil

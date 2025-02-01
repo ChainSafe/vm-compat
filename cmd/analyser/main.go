@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/ChainSafe/vm-compat/analyser/opcode"
 	"html/template"
 	"log"
 	"os"
@@ -11,10 +12,9 @@ import (
 	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/disassembler"
 	"github.com/ChainSafe/vm-compat/disassembler/manager"
-	"github.com/ChainSafe/vm-compat/opcode"
 	"github.com/ChainSafe/vm-compat/profile"
 	"github.com/ChainSafe/vm-compat/renderer"
-	"github.com/ChainSafe/vm-compat/syscall"
+	"github.com/ChainSafe/vm-compat/analyser/syscall"
 )
 
 var (
@@ -58,7 +58,7 @@ func main() {
 		log.Fatalf("Error loading profile: %v", err)
 	}
 
-	var issues []analyser.Issue
+	var issues []*analyser.Issue
 	switch *analyzer {
 	case "opcode":
 		issues, err = analyzeOpcode(profile, args[0])
@@ -66,7 +66,7 @@ func main() {
 			log.Fatalf("Unable to analyze Opcode: %s", err)
 		}
 	case "syscall":
-		issues, err = syscall.AnalyseSyscalls(profile, args[0])
+		issues, err = syscall.NewGOSyscallAnalyser(profile).Analyze(args[0])
 		if err != nil {
 			log.Fatalf("Unable to analyze Syscalls: %s", err)
 		}
@@ -90,7 +90,7 @@ func main() {
 	}
 }
 
-func analyzeOpcode(profile *profile.VMProfile, paths string) ([]analyser.Issue, error) {
+func analyzeOpcode(profile *profile.VMProfile, paths string) ([]*analyser.Issue, error) {
 	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
 		return nil, err
@@ -115,5 +115,5 @@ func analyzeOpcode(profile *profile.VMProfile, paths string) ([]analyser.Issue, 
 		}
 	}
 
-	return opcode.AnalyseOpcodes(profile, *disassemblyOutputPath)
+	return opcode.NewAnalyser(profile).Analyze(*disassemblyOutputPath)
 }

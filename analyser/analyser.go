@@ -1,10 +1,10 @@
 package analyser
 
-// Analyser represents the interface for the analyser
-type Analyser interface {
-	// Analyse analyzes the provided source code and returns any issues found.
+// Analyzer represents the interface for the analyser.
+type Analyzer interface {
+	// Analyze analyzes the provided source code and returns any issues found.
 	// TODO: better to update the code to take a reader interface instead of path
-	Analyse(path string) ([]*Issue, error)
+	Analyze(path string) ([]*Issue, error)
 }
 
 // Issue represents a single issue found by the analyser.

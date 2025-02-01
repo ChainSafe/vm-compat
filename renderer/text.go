@@ -14,7 +14,7 @@ func NewTextRenderer() Renderer {
 	return &TextRenderer{}
 }
 
-func (r *TextRenderer) Render(issues []analyser.Issue, output io.Writer) error {
+func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error {
 	for _, issue := range issues {
 		_, err := fmt.Fprintf(output, "File: %s, Line: %d, Message: %s\n",
 			issue.File, issue.Line, issue.Message)

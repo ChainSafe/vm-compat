@@ -14,11 +14,11 @@ type opcode struct {
 	profile *profile.VMProfile
 }
 
-func NewAnalyser(profile *profile.VMProfile) analyser.Analyser {
+func NewAnalyser(profile *profile.VMProfile) analyser.Analyzer {
 	return &opcode{profile: profile}
 }
 
-func (op *opcode) Analyse(path string) ([]*analyser.Issue, error) {
+func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 	var err error
 	var callGraph asmparser.CallGraph
 
@@ -27,7 +27,6 @@ func (op *opcode) Analyse(path string) ([]*analyser.Issue, error) {
 		callGraph, err = mips.NewParser().Parse(path)
 	default:
 		return nil, fmt.Errorf("unsupported GOARCH %s", op.profile.GOARCH)
-
 	}
 	if err != nil {
 		return nil, err
