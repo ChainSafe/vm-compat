@@ -3,18 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/ChainSafe/vm-compat/analyser/opcode"
 	"html/template"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/analyser/opcode"
+	"github.com/ChainSafe/vm-compat/analyser/syscall"
 	"github.com/ChainSafe/vm-compat/disassembler"
 	"github.com/ChainSafe/vm-compat/disassembler/manager"
 	"github.com/ChainSafe/vm-compat/profile"
 	"github.com/ChainSafe/vm-compat/renderer"
-	"github.com/ChainSafe/vm-compat/analyser/syscall"
 )
 
 var (
@@ -57,11 +57,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading profile: %v", err)
 	}
+	err = disassemble(profile, args[0])
+	if err != nil {
+		log.Fatalf("Error disassembling the file: %v", err)
+	}
 
 	var issues []*analyser.Issue
 	switch *analyzer {
 	case "opcode":
-		issues, err = analyzeOpcode(profile, args[0])
+		issues, err = opcode.NewAnalyser(profile).Analyze(args[0])
 		if err != nil {
 			log.Fatalf("Unable to analyze Opcode: %s", err)
 		}
@@ -70,6 +74,11 @@ func main() {
 		if err != nil {
 			log.Fatalf("Unable to analyze Syscalls: %s", err)
 		}
+		issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(*disassemblyOutputPath)
+		if err != nil {
+			log.Fatalf("Unable to analyze Syscalls: %s", err)
+		}
+		issues = append(issues, issues2...)
 	default:
 		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
@@ -90,10 +99,10 @@ func main() {
 	}
 }
 
-func analyzeOpcode(profile *profile.VMProfile, paths string) ([]*analyser.Issue, error) {
+func disassemble(profile *profile.VMProfile, paths string) error {
 	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if *disassemblyOutputPath == "" {
@@ -106,14 +115,13 @@ func analyzeOpcode(profile *profile.VMProfile, paths string) ([]*analyser.Issue,
 	case "binary":
 		_, err = dis.Disassemble(disassembler.SourceBinary, paths, *disassemblyOutputPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	case "source":
 		_, err = dis.Disassemble(disassembler.SourceFile, paths, *disassemblyOutputPath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-
-	return opcode.NewAnalyser(profile).Analyze(*disassemblyOutputPath)
+	return nil
 }

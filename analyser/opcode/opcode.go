@@ -3,6 +3,7 @@ package opcode
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -32,14 +33,15 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 		return nil, err
 	}
 	issues := make([]*analyser.Issue, 0)
+	fmt.Println(len(callGraph.Segments()))
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.Opcode(), instruction.Funct()) {
-				// TODO: add funct in issue
 				issues = append(issues, &analyser.Issue{
-					File:    path,
-					Segment: segment.Label(),
-					Message: fmt.Sprintf("Incompatible Opcode Detected: 0x%x", instruction.Opcode()),
+					File:   path,
+					Source: instruction.Address(), // TODO: add proper source
+					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
+						instruction.Opcode(), instruction.Funct()),
 				})
 			}
 		}
@@ -49,12 +51,14 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 
 func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 	return slices.ContainsFunc(op.profile.AllowedOpcodes, func(instr profile.OpcodeInstruction) bool {
-		if instr.Opcode != opcode {
+		if !strings.EqualFold(instr.Opcode, opcode) {
 			return false
 		}
 		if len(instr.Funct) == 0 {
 			return funct == ""
 		}
-		return slices.Contains(instr.Funct, funct)
+		return slices.ContainsFunc(instr.Funct, func(s string) bool {
+			return strings.EqualFold(s, funct)
+		})
 	})
 }

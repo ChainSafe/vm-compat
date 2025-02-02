@@ -64,14 +64,14 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 				continue
 			}
 
-			message := fmt.Sprintf("Incompatible Syscall Detected: 0x%x", syscallNum)
+			message := fmt.Sprintf("Incompatible Syscall Detected: %d", syscallNum)
 			if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
-				message = fmt.Sprintf("NOOP Syscall Detected: 0x%x", syscallNum)
+				message = fmt.Sprintf("NOOP Syscall Detected: %d", syscallNum)
 			}
 
 			issues = append(issues, &analyser.Issue{
 				File:    path,
-				Segment: segmentLabel,
+				Source:  instruction.Address(),
 				Message: message,
 			})
 		}

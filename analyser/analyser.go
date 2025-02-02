@@ -10,7 +10,6 @@ type Analyzer interface {
 // Issue represents a single issue found by the analyser.
 type Issue struct {
 	File    string // The file where the issue was found.
-	Line    int    // The line number of the issue.
-	Segment string // The block or function where the issue found
+	Source  string // The source(line/pc address, block or function)
 	Message string // A description of the issue.
 }

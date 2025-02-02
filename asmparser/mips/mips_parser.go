@@ -176,12 +176,12 @@ func (i *instruction) Type() asmparser.InstructionType {
 }
 
 func (i *instruction) Opcode() string {
-	return fmt.Sprintf("%x", i.opcode)
+	return fmt.Sprintf("0x%x", i.opcode)
 }
 
 func (i *instruction) Funct() string {
 	if i.instType == asmparser.RType && len(i.operands) > 4 {
-		return fmt.Sprintf("%x", i.operands[4])
+		return fmt.Sprintf("0x%x", i.operands[4])
 	}
 	return ""
 }
@@ -191,7 +191,7 @@ func (i *instruction) Mnemonic() string {
 }
 
 func (i *instruction) Address() string {
-	return fmt.Sprintf("%x", i.address)
+	return fmt.Sprintf("0x%x", i.address)
 }
 
 func (i *instruction) IsSyscall() bool {
@@ -227,7 +227,7 @@ func newSegment(address uint64, label string) *segment {
 }
 
 func (s *segment) Address() string {
-	return fmt.Sprintf("%x", s.address)
+	return fmt.Sprintf("0x%x", s.address)
 }
 
 func (s *segment) Label() string {
