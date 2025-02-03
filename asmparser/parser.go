@@ -19,7 +19,7 @@ const (
 type Instruction interface {
 	Type() InstructionType // Type returns the instruction type (R, I, or J).
 	Address() string       // Address returns the instruction memory address.
-	Opcode() string        // Opcode returns the opcode of the instruction.
+	OpcodeHex() string     // OpcodeHex returns the opcode of the instruction in hex string.
 	Funct() string         // Funct returns the function code (for R-Type instructions).
 	Mnemonic() string      // Mnemonic returns the assembly mnemonic representation.
 	IsSyscall() bool       // IsSyscall returns true if the instruction is a syscall.

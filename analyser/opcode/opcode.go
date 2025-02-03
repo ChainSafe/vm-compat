@@ -36,12 +36,12 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 	fmt.Println(len(callGraph.Segments()))
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
-			if !op.isAllowedOpcode(instruction.Opcode(), instruction.Funct()) {
+			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
 				issues = append(issues, &analyser.Issue{
 					File:   path,
 					Source: instruction.Address(), // TODO: add proper source
 					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
-						instruction.Opcode(), instruction.Funct()),
+						instruction.OpcodeHex(), instruction.Funct()),
 				})
 			}
 		}

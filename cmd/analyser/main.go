@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading profile: %v", err)
 	}
-	err = disassemble(profile, args[0])
+	*disassemblyOutputPath, err = disassemble(profile, args[0])
 	if err != nil {
 		log.Fatalf("Error disassembling the file: %v", err)
 	}
@@ -65,7 +65,7 @@ func main() {
 	var issues []*analyser.Issue
 	switch *analyzer {
 	case "opcode":
-		issues, err = opcode.NewAnalyser(profile).Analyze(args[0])
+		issues, err = opcode.NewAnalyser(profile).Analyze(*disassemblyOutputPath)
 		if err != nil {
 			log.Fatalf("Unable to analyze Opcode: %s", err)
 		}
@@ -99,10 +99,10 @@ func main() {
 	}
 }
 
-func disassemble(profile *profile.VMProfile, paths string) error {
+func disassemble(profile *profile.VMProfile, paths string) (string, error) {
 	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if *disassemblyOutputPath == "" {
@@ -115,13 +115,13 @@ func disassemble(profile *profile.VMProfile, paths string) error {
 	case "binary":
 		_, err = dis.Disassemble(disassembler.SourceBinary, paths, *disassemblyOutputPath)
 		if err != nil {
-			return err
+			return "", err
 		}
 	case "source":
 		_, err = dis.Disassemble(disassembler.SourceFile, paths, *disassemblyOutputPath)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-	return nil
+	return *disassemblyOutputPath, nil
 }

@@ -22,7 +22,7 @@ const (
 var (
 	// Regular expressions for parsing assembly blocks and instructions.
 	blockStartRegex  = regexp.MustCompile("^([0-9a-fA-F]+)\\s+<([^>]+)>:$")
-	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s*([a-z]*)\\s*(.*)")
+	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s+([a-z]+)\\s*(.*)")
 )
 
 // parserImpl implements the asmparser.Parser interface.
@@ -120,6 +120,7 @@ func parseInstruction(line string) (*instruction, error) {
 }
 
 // decodeInstruction decodes a hexadecimal MIPS instruction.
+// https://en.wikibooks.org/wiki/MIPS_Assembly/Instruction_Formats#FI_Instructions
 func decodeInstruction(str string) (*instruction, error) {
 	_instruction, err := strconv.ParseUint(str, 16, 32)
 	if err != nil {
@@ -134,7 +135,7 @@ func decodeInstruction(str string) (*instruction, error) {
 	}
 
 	switch opcode {
-	case 0x00: // R-Type Instructions
+	case 0x00, 0x1c: // R-Type Instructions (0x1c SPECIAL2 Format)
 		rs := (instr >> 21) & 0x1F
 		rt := (instr >> 16) & 0x1F
 		rd := (instr >> 11) & 0x1F
@@ -175,7 +176,7 @@ func (i *instruction) Type() asmparser.InstructionType {
 	return i.instType
 }
 
-func (i *instruction) Opcode() string {
+func (i *instruction) OpcodeHex() string {
 	return fmt.Sprintf("0x%x", i.opcode)
 }
 
