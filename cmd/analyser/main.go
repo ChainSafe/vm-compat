@@ -62,7 +62,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error disassembling the file: %v", err)
 	}
-	defer os.Remove(*disassemblyOutputPath)
 
 	var issues []*analyser.Issue
 	switch *analyzer {
