@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/profile"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -15,35 +16,45 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
+// goSyscallAnalyser analyzes system calls in Go binaries.
+type goSyscallAnalyser struct {
+	profile *profile.VMProfile
+}
+
+// NewGOSyscallAnalyser initializes an analyser for Go syscalls.
+func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
+	return &goSyscallAnalyser{profile: profile}
+}
+
+// Analyze scans a Go binary for syscalls and detects compatibility issues.
+func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 	cfg := &packages.Config{
 		Mode:       packages.LoadAllSyntax,
 		BuildFlags: []string{},
 		Env: append(
 			os.Environ(),
-			fmt.Sprintf("GOOS=%s", profile.GOOS),
-			fmt.Sprintf("GOARCH=%s", profile.GOARCH),
+			fmt.Sprintf("GOOS=%s", a.profile.GOOS),
+			fmt.Sprintf("GOARCH=%s", a.profile.GOARCH),
 		),
 	}
 
-	initial, err := packages.Load(cfg, paths...)
+	initial, err := packages.Load(cfg, path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if packages.PrintErrors(initial) > 0 {
-		return fmt.Errorf("packages contain errors")
+		return nil, fmt.Errorf("packages contain errors")
 	}
 
 	// Create and build SSA-form program representation.
-	mode := ssa.InstantiateGenerics // instantiate generics by default for soundness
+	mode := ssa.InstantiateGenerics
 	prog, _ := ssautil.AllPackages(initial, mode)
 	prog.Build()
 
-	// -- rta call graph construction ------------------------------------------
-
+	// Construct call graph using RTA analysis.
 	mains, err := mainPackages(prog.AllPackages())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	roots := make([]*ssa.Function, 0)
 	for _, main := range mains {
@@ -54,38 +65,43 @@ func AnalyseSyscalls(profile *profile.VMProfile, paths ...string) error {
 	cg := rta.Analyze(roots, true).CallGraph
 	cg.DeleteSyntheticNodes()
 
-	// Analyze the call graph for syscalls
+	// Analyze call graph for syscalls.
 	syscalls := make([]int, 0)
 	err = callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
 		callee := edge.Callee.Func
 		if callee != nil && callee.Pkg != nil && callee.Pkg.Pkg != nil {
 			packagePath := callee.Pkg.Pkg.Path()
-			switch packagePath {
-			case "syscall":
-				if callee.Name() == "RawSyscall6" {
-					calls := traceSyscalls(nil, edge)
-					syscalls = append(syscalls, calls...)
-				}
-			default:
+			if packagePath == "syscall" && callee.Name() == "RawSyscall6" {
+				calls := traceSyscalls(nil, edge)
+				syscalls = append(syscalls, calls...)
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, sycall := range syscalls {
-		if !slices.Contains(profile.AllowedSycalls, sycall) {
-			if slices.Contains(profile.NOOPSyscalls, sycall) {
-				fmt.Println("Noop syscall detected:", sycall)
-				continue
-			}
-			fmt.Println("Restricted syscall detected:", sycall)
+	// Check against allowed syscalls.
+	issues := []*analyser.Issue{}
+	for _, syscallNum := range syscalls {
+		// Categorize syscall
+		if slices.Contains(a.profile.AllowedSycalls, syscallNum) {
+			continue
 		}
+
+		message := fmt.Sprintf("Incompatible Syscall Detected: 0x%x", syscallNum)
+		if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
+			message = fmt.Sprintf("NOOP Syscall Detected: 0x%x", syscallNum)
+		}
+
+		issues = append(issues, &analyser.Issue{
+			File:    path,
+			Message: message,
+		})
 	}
 
-	return nil
+	return issues, nil
 }
 
 func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
