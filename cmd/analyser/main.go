@@ -28,7 +28,8 @@ var (
 		"disassembly-output-path",
 		"",
 		"output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
-	format = flag.String("format", "text", "format of the output. Options: json, text")
+	format           = flag.String("format", "text", "format of the output. Options: json, text")
+	reportOutputPath = flag.String("report-output-path", "", "output file path for report to pass. optional. default: stdout")
 )
 
 const usage = `
@@ -61,7 +62,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error disassembling the file: %v", err)
 	}
-	defer os.Remove(*disassemblyOutputPath)
 
 	var issues []*analyser.Issue
 	switch *analyzer {
@@ -84,14 +84,27 @@ func main() {
 		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
 
+	output := os.Stdout
+	if *reportOutputPath != "" {
+		path, err := filepath.Abs(*reportOutputPath)
+		if err != nil {
+			log.Fatalf("Unable to determine absolute path to output file: %s", err)
+		}
+
+		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			log.Fatalf("Unable to open output file: %s", err)
+		}
+		defer output.Close()
+	}
 	switch *format {
 	case "text":
-		err = renderer.NewTextRenderer().Render(issues, os.Stdout)
+		err = renderer.NewTextRenderer().Render(issues, output)
 		if err != nil {
 			log.Fatalf("Unable to render: %s", err)
 		}
 	case "json":
-		err = renderer.NewJSONRenderer().Render(issues, os.Stdout)
+		err = renderer.NewJSONRenderer().Render(issues, output)
 		if err != nil {
 			log.Fatalf("Unable to render: %s", err)
 		}
