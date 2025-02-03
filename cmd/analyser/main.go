@@ -29,7 +29,7 @@ var (
 		"",
 		"output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
 	format           = flag.String("format", "text", "format of the output. Options: json, text")
-	reportOutputPath = flag.String("report-output-path", "", "output file path for report to pass. default: stdout")
+	reportOutputPath = flag.String("report-output-path", "", "output file path for report to pass. optional. default: stdout")
 )
 
 const usage = `
