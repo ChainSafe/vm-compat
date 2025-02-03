@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error disassembling the file: %v", err)
 	}
+	defer os.Remove(*disassemblyOutputPath)
 
 	var issues []*analyser.Issue
 	switch *analyzer {
@@ -108,7 +109,6 @@ func disassemble(profile *profile.VMProfile, paths string) (string, error) {
 	if *disassemblyOutputPath == "" {
 		// add a temporary path to write the disassembly output
 		*disassemblyOutputPath = filepath.Join(os.TempDir(), "temp_assembly_output")
-		defer os.Remove(*disassemblyOutputPath)
 	}
 
 	switch *mode {
