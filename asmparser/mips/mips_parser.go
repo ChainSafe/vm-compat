@@ -22,7 +22,7 @@ const (
 var (
 	// Regular expressions for parsing assembly blocks and instructions.
 	blockStartRegex  = regexp.MustCompile("^([0-9a-fA-F]+)\\s+<([^>]+)>:$")
-	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s+([a-z]+)\\s*(.*)")
+	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s*([0-9a-fA-F]+)\\s+([a-z]+)\\s*(.*)")
 )
 
 // parserImpl implements the asmparser.Parser interface.
