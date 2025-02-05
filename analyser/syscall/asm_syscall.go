@@ -22,6 +22,8 @@ func NewAssemblySyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
 }
 
 // Analyze scans an assembly file for syscalls and detects compatibility issues.
+//
+//nolint:cyclop
 func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 	var (
 		err       error
