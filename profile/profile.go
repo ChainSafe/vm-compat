@@ -1,3 +1,4 @@
+// Package profile provides a way to load and parse VM profiles.
 package profile
 
 import (
@@ -43,7 +44,9 @@ func LoadProfile(filename string) (*VMProfile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open profile: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	var profile VMProfile
 	if err = yaml.NewDecoder(file).Decode(&profile); err != nil {

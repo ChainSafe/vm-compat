@@ -27,10 +27,14 @@ type Instruction interface {
 
 // Segment defines an interface representing a block of assembly instructions.
 type Segment interface {
-	Address() string                                   // Address returns the segment's starting memory address.
-	Label() string                                     // Label returns the segment's associated label, if any.
-	Instructions() []Instruction                       // Instructions return the list of instructions in the segment.
-	RetrieveSyscallNum(instr Instruction) (int, error) // RetrieveSyscallNum returns the number of the syscall from the instr
+	// Address returns the segment's starting memory address.
+	Address() string
+	// Label returns the segment's associated label, if any.
+	Label() string
+	// Instructions return the list of instructions in the segment.
+	Instructions() []Instruction
+	// RetrieveSyscallNum returns the number of the syscall from the instr
+	RetrieveSyscallNum(instr Instruction) (int, error)
 }
 
 // CallGraph defines an interface representing a call graph of segments.

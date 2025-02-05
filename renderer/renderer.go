@@ -1,3 +1,4 @@
+// Package renderer provides a way to render issues in different formats.
 package renderer
 
 import (
