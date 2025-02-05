@@ -34,7 +34,6 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 		return nil, err
 	}
 	issues := make([]*analyser.Issue, 0)
-	fmt.Println(len(callGraph.Segments()))
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
