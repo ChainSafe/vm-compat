@@ -1,3 +1,4 @@
+// Package profile provides a way to load and parse VM profiles.
 package profile
 
 import (

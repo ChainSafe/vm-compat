@@ -1,3 +1,4 @@
+// Package objdump provides a disassembler for generating disassembly from binaries.
 package objdump
 
 import (

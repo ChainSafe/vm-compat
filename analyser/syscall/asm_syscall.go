@@ -1,4 +1,4 @@
-// Package syscall implements analyser.Analyse for detecting syscalls
+// Package syscall implements analyser. Analyze for detecting syscalls
 package syscall
 
 import (

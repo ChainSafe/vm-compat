@@ -1,3 +1,4 @@
+// Package analyser provides an interface for analysing source code for compatibility issues.
 package analyser
 
 // Analyzer represents the interface for the analyser.
@@ -9,7 +10,7 @@ type Analyzer interface {
 
 // Issue represents a single issue found by the analyser.
 type Issue struct {
-	File    string // The file where the issue was found.
-	Source  string // The source(line/pc address, block or function)
-	Message string // A description of the issue.
+	File    string `json:"file"`    // The file where the issue was found.
+	Source  string `json:"source"`  // The source(line/pc address, block or function)
+	Message string `json:"message"` // A description of the issue.
 }

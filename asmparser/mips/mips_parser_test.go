@@ -34,17 +34,19 @@ Disassembly of section .text:
    8d9ec:	10e00002 	beqz	a3,8d9f8 <runtime.read+0x20>
    8d9f0:	0000000f 	sync
 `
-	if _, err := tempFile.WriteString(content); err != nil {
+	if _, err = tempFile.WriteString(content); err != nil {
 		t.Fatal(err)
 	}
-	tempFile.Close()
+	defer func() {
+		_ = tempFile.Close()
+	}()
 
 	parser := NewParser()
 	graph, err := parser.Parse(tempFile.Name())
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-	assert.Equal(t, len(graph.Segments()), 2)
+	assert.Len(t, graph.Segments(), 2)
 
 	// Order not preserved in a segment as it is stored in a map
 	var segment1, segment2 asmparser.Segment
@@ -56,79 +58,79 @@ Disassembly of section .text:
 		}
 	}
 
-	assert.Equal(t, segment1.Label(), "internal/abi.Kind.String")
-	assert.Equal(t, segment1.Address(), "0x11000")
+	assert.Equal(t, "internal/abi.Kind.String", segment1.Label())
+	assert.Equal(t, "0x11000", segment1.Address())
 
-	assert.Equal(t, segment2.Label(), "runtime.read")
-	assert.Equal(t, segment2.Address(), "0x8d9d8")
+	assert.Equal(t, "runtime.read", segment2.Label())
+	assert.Equal(t, "0x8d9d8", segment2.Address())
 
 	instrs := segment1.Instructions()
 	assert.Equal(t, len(instrs), 5)
 
-	assert.Equal(t, instrs[0].Address(), "0x11000")
-	assert.Equal(t, instrs[0].OpcodeHex(), "0x37")
-	assert.Equal(t, instrs[0].IsSyscall(), false)
-	assert.Equal(t, instrs[0].Funct(), "")
-	assert.Equal(t, instrs[0].Type(), asmparser.IType)
-	assert.Equal(t, instrs[0].Mnemonic(), "ld")
+	assert.Equal(t, "0x11000", instrs[0].Address())
+	assert.Equal(t, "0x37", instrs[0].OpcodeHex())
+	assert.Equal(t, false, instrs[0].IsSyscall())
+	assert.Equal(t, "", instrs[0].Funct())
+	assert.Equal(t, asmparser.IType, instrs[0].Type())
+	assert.Equal(t, "ld", instrs[0].Mnemonic())
 
-	assert.Equal(t, instrs[1].Address(), "0x11004")
-	assert.Equal(t, instrs[1].OpcodeHex(), "0x0")
-	assert.Equal(t, instrs[1].IsSyscall(), false)
-	assert.Equal(t, instrs[1].Funct(), "0x2b")
-	assert.Equal(t, instrs[1].Type(), asmparser.RType)
-	assert.Equal(t, instrs[1].Mnemonic(), "sltu")
+	assert.Equal(t, "0x11004", instrs[1].Address())
+	assert.Equal(t, "0x0", instrs[1].OpcodeHex())
+	assert.Equal(t, false, instrs[1].IsSyscall())
+	assert.Equal(t, "0x2b", instrs[1].Funct())
+	assert.Equal(t, asmparser.RType, instrs[1].Type())
+	assert.Equal(t, "sltu", instrs[1].Mnemonic())
 
-	assert.Equal(t, instrs[2].Address(), "0x11008")
-	assert.Equal(t, instrs[2].OpcodeHex(), "0x0")
-	assert.Equal(t, instrs[2].IsSyscall(), true)
-	assert.Equal(t, instrs[2].Funct(), "0xc")
-	assert.Equal(t, instrs[2].Type(), asmparser.RType)
-	assert.Equal(t, instrs[2].Mnemonic(), "syscall")
+	assert.Equal(t, "0x11008", instrs[2].Address())
+	assert.Equal(t, "0x0", instrs[2].OpcodeHex())
+	assert.Equal(t, true, instrs[2].IsSyscall())
+	assert.Equal(t, "0xc", instrs[2].Funct())
+	assert.Equal(t, asmparser.RType, instrs[2].Type())
+	assert.Equal(t, "syscall", instrs[2].Mnemonic())
 
 	_, err = segment1.RetrieveSyscallNum(instrs[2])
 	assert.Error(t, err)
 
-	assert.Equal(t, instrs[3].Address(), "0x1100c")
-	assert.Equal(t, instrs[3].OpcodeHex(), "0x3")
-	assert.Equal(t, instrs[3].IsSyscall(), false)
-	assert.Equal(t, instrs[3].Funct(), "")
-	assert.Equal(t, instrs[3].Type(), asmparser.JType)
-	assert.Equal(t, instrs[3].Mnemonic(), "jal")
+	assert.Equal(t, "0x1100c", instrs[3].Address())
+	assert.Equal(t, "0x3", instrs[3].OpcodeHex())
+	assert.Equal(t, false, instrs[3].IsSyscall())
+	assert.Equal(t, "", instrs[3].Funct())
+	assert.Equal(t, asmparser.JType, instrs[3].Type())
+	assert.Equal(t, "jal", instrs[3].Mnemonic())
 
-	assert.Equal(t, instrs[4].Address(), "0x11010")
-	assert.Equal(t, instrs[4].OpcodeHex(), "0x0")
-	assert.Equal(t, instrs[4].IsSyscall(), false)
-	assert.Equal(t, instrs[4].Funct(), "0x0")
-	assert.Equal(t, instrs[4].Type(), asmparser.RType)
-	assert.Equal(t, instrs[4].Mnemonic(), "nop")
+	assert.Equal(t, "0x11010", instrs[4].Address())
+	assert.Equal(t, "0x0", instrs[4].OpcodeHex())
+	assert.Equal(t, false, instrs[4].IsSyscall())
+	assert.Equal(t, "0x0", instrs[4].Funct())
+	assert.Equal(t, asmparser.RType, instrs[4].Type())
+	assert.Equal(t, "nop", instrs[4].Mnemonic())
 
 	instrs = segment2.Instructions()
 	assert.Equal(t, len(instrs), 7)
 
 	// skip firsts 3 as it is similar to already checked instructions
-	assert.Equal(t, instrs[3].Address(), "0x8d9e4")
-	assert.Equal(t, instrs[3].OpcodeHex(), "0x19")
-	assert.Equal(t, instrs[3].IsSyscall(), false)
-	assert.Equal(t, instrs[3].Funct(), "")
-	assert.Equal(t, instrs[3].Type(), asmparser.IType)
-	assert.Equal(t, instrs[3].Mnemonic(), "daddiu")
+	assert.Equal(t, "0x8d9e4", instrs[3].Address())
+	assert.Equal(t, "0x19", instrs[3].OpcodeHex())
+	assert.Equal(t, false, instrs[3].IsSyscall())
+	assert.Equal(t, "", instrs[3].Funct())
+	assert.Equal(t, asmparser.IType, instrs[3].Type())
+	assert.Equal(t, "daddiu", instrs[3].Mnemonic())
 
 	syscallNum, err := segment2.RetrieveSyscallNum(instrs[4])
 	assert.NoError(t, err)
 	assert.Equal(t, syscallNum, 5000)
 
-	assert.Equal(t, instrs[5].Address(), "0x8d9ec")
-	assert.Equal(t, instrs[5].OpcodeHex(), "0x4")
-	assert.Equal(t, instrs[5].IsSyscall(), false)
-	assert.Equal(t, instrs[5].Funct(), "")
-	assert.Equal(t, instrs[5].Type(), asmparser.IType)
-	assert.Equal(t, instrs[5].Mnemonic(), "beqz")
+	assert.Equal(t, "0x8d9ec", instrs[5].Address())
+	assert.Equal(t, "0x4", instrs[5].OpcodeHex())
+	assert.Equal(t, false, instrs[5].IsSyscall())
+	assert.Equal(t, "", instrs[5].Funct())
+	assert.Equal(t, asmparser.IType, instrs[5].Type())
+	assert.Equal(t, "beqz", instrs[5].Mnemonic())
 
-	assert.Equal(t, instrs[6].Address(), "0x8d9f0")
-	assert.Equal(t, instrs[6].OpcodeHex(), "0x0")
-	assert.Equal(t, instrs[6].IsSyscall(), false)
-	assert.Equal(t, instrs[6].Funct(), "0xf")
-	assert.Equal(t, instrs[6].Type(), asmparser.RType)
-	assert.Equal(t, instrs[6].Mnemonic(), "sync")
+	assert.Equal(t, "0x8d9f0", instrs[6].Address())
+	assert.Equal(t, "0x0", instrs[6].OpcodeHex())
+	assert.Equal(t, false, instrs[6].IsSyscall())
+	assert.Equal(t, "0xf", instrs[6].Funct())
+	assert.Equal(t, asmparser.RType, instrs[6].Type())
+	assert.Equal(t, "sync", instrs[6].Mnemonic())
 }
