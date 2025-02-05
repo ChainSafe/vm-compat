@@ -265,6 +265,7 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 	offset := ins.address - s.address
 	indexOfInstr := offset / uint64(4)
 
+	// every value of i is a uint64 which is always >= 0, hence check against max uint64
 	for i := indexOfInstr - 1; i < math.MaxUint64; i-- {
 		currInstr := s.instructions[i]
 		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {
