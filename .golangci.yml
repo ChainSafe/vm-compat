@@ -238,7 +238,6 @@ linters-settings:
 linters:
   enable:
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - errcheck
@@ -248,7 +247,6 @@ linters:
     - godox
     - gofmt
     - goimports
-    - golint
     - gosec
     - gosimple
     - govet
@@ -258,13 +256,11 @@ linters:
     - nakedret
     - exportloopref
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
     - gocritic
   disable:
