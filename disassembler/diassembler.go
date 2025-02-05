@@ -1,3 +1,4 @@
+// Package disassembler provides a way to disassemble binaries and source code.
 package disassembler
 
 type Source int64

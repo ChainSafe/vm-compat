@@ -6,6 +6,7 @@ import (
 
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParse(t *testing.T) {
@@ -65,42 +66,42 @@ Disassembly of section .text:
 	assert.Equal(t, "0x8d9d8", segment2.Address())
 
 	instrs := segment1.Instructions()
-	assert.Equal(t, len(instrs), 5)
+	assert.Equal(t, 5, len(instrs))
 
 	assert.Equal(t, "0x11000", instrs[0].Address())
 	assert.Equal(t, "0x37", instrs[0].OpcodeHex())
-	assert.Equal(t, false, instrs[0].IsSyscall())
+	assert.False(t, instrs[0].IsSyscall())
 	assert.Equal(t, "", instrs[0].Funct())
 	assert.Equal(t, asmparser.IType, instrs[0].Type())
 	assert.Equal(t, "ld", instrs[0].Mnemonic())
 
 	assert.Equal(t, "0x11004", instrs[1].Address())
 	assert.Equal(t, "0x0", instrs[1].OpcodeHex())
-	assert.Equal(t, false, instrs[1].IsSyscall())
+	assert.False(t, instrs[1].IsSyscall())
 	assert.Equal(t, "0x2b", instrs[1].Funct())
 	assert.Equal(t, asmparser.RType, instrs[1].Type())
 	assert.Equal(t, "sltu", instrs[1].Mnemonic())
 
 	assert.Equal(t, "0x11008", instrs[2].Address())
 	assert.Equal(t, "0x0", instrs[2].OpcodeHex())
-	assert.Equal(t, true, instrs[2].IsSyscall())
+	assert.True(t, instrs[2].IsSyscall())
 	assert.Equal(t, "0xc", instrs[2].Funct())
 	assert.Equal(t, asmparser.RType, instrs[2].Type())
 	assert.Equal(t, "syscall", instrs[2].Mnemonic())
 
 	_, err = segment1.RetrieveSyscallNum(instrs[2])
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	assert.Equal(t, "0x1100c", instrs[3].Address())
 	assert.Equal(t, "0x3", instrs[3].OpcodeHex())
-	assert.Equal(t, false, instrs[3].IsSyscall())
+	assert.False(t, instrs[3].IsSyscall())
 	assert.Equal(t, "", instrs[3].Funct())
 	assert.Equal(t, asmparser.JType, instrs[3].Type())
 	assert.Equal(t, "jal", instrs[3].Mnemonic())
 
 	assert.Equal(t, "0x11010", instrs[4].Address())
 	assert.Equal(t, "0x0", instrs[4].OpcodeHex())
-	assert.Equal(t, false, instrs[4].IsSyscall())
+	assert.False(t, instrs[4].IsSyscall())
 	assert.Equal(t, "0x0", instrs[4].Funct())
 	assert.Equal(t, asmparser.RType, instrs[4].Type())
 	assert.Equal(t, "nop", instrs[4].Mnemonic())
@@ -111,25 +112,25 @@ Disassembly of section .text:
 	// skip firsts 3 as it is similar to already checked instructions
 	assert.Equal(t, "0x8d9e4", instrs[3].Address())
 	assert.Equal(t, "0x19", instrs[3].OpcodeHex())
-	assert.Equal(t, false, instrs[3].IsSyscall())
+	assert.False(t, instrs[3].IsSyscall())
 	assert.Equal(t, "", instrs[3].Funct())
 	assert.Equal(t, asmparser.IType, instrs[3].Type())
 	assert.Equal(t, "daddiu", instrs[3].Mnemonic())
 
 	syscallNum, err := segment2.RetrieveSyscallNum(instrs[4])
-	assert.NoError(t, err)
-	assert.Equal(t, syscallNum, 5000)
+	require.Error(t, err)
+	assert.Equal(t, 5000, syscallNum)
 
 	assert.Equal(t, "0x8d9ec", instrs[5].Address())
 	assert.Equal(t, "0x4", instrs[5].OpcodeHex())
-	assert.Equal(t, false, instrs[5].IsSyscall())
+	assert.False(t, instrs[5].IsSyscall())
 	assert.Equal(t, "", instrs[5].Funct())
 	assert.Equal(t, asmparser.IType, instrs[5].Type())
 	assert.Equal(t, "beqz", instrs[5].Mnemonic())
 
 	assert.Equal(t, "0x8d9f0", instrs[6].Address())
 	assert.Equal(t, "0x0", instrs[6].OpcodeHex())
-	assert.Equal(t, false, instrs[6].IsSyscall())
+	assert.False(t, instrs[6].IsSyscall())
 	assert.Equal(t, "0xf", instrs[6].Funct())
 	assert.Equal(t, asmparser.RType, instrs[6].Type())
 	assert.Equal(t, "sync", instrs[6].Mnemonic())

@@ -4,6 +4,7 @@ package mips
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -264,7 +265,7 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 	offset := ins.address - s.address
 	indexOfInstr := offset / uint64(4)
 
-	for i := indexOfInstr - 1; i >= 0; i-- {
+	for i := indexOfInstr - 1; i >= 0 && i < math.MaxUint64; i-- {
 		currInstr := s.instructions[i]
 		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {
 			return 0, fmt.Errorf("unsupported operation: register v0 modified before syscall assignment at %s",
