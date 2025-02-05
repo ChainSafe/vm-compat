@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: Unite Tests
+    name: Unit Tests
     runs-on: ubuntu-20.04
     env:
       DOCKER_DOWNLOAD_TIMEOUT_MIN: 3000
