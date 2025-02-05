@@ -155,6 +155,8 @@ func flushOutput(issues []*analyser.Issue) error {
 			return err
 		}
 	default:
-		log.Fatalf("Invalid format: %s", *format)
+		log.Printf("Invalid format: %s", *format)
+		return fmt.Errorf("invalid format: %s", *format)
 	}
+	return nil
 }
