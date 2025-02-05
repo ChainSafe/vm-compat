@@ -66,7 +66,7 @@ Disassembly of section .text:
 	assert.Equal(t, "0x8d9d8", segment2.Address())
 
 	instrs := segment1.Instructions()
-	assert.Equal(t, 5, len(instrs))
+	assert.Len(t, instrs, 5)
 
 	assert.Equal(t, "0x11000", instrs[0].Address())
 	assert.Equal(t, "0x37", instrs[0].OpcodeHex())
@@ -107,7 +107,7 @@ Disassembly of section .text:
 	assert.Equal(t, "nop", instrs[4].Mnemonic())
 
 	instrs = segment2.Instructions()
-	assert.Equal(t, len(instrs), 7)
+	assert.Len(t, instrs, 7)
 
 	// skip firsts 3 as it is similar to already checked instructions
 	assert.Equal(t, "0x8d9e4", instrs[3].Address())
