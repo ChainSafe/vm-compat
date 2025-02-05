@@ -118,7 +118,7 @@ Disassembly of section .text:
 	assert.Equal(t, "daddiu", instrs[3].Mnemonic())
 
 	syscallNum, err := segment2.RetrieveSyscallNum(instrs[4])
-	require.Error(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 5000, syscallNum)
 
 	assert.Equal(t, "0x8d9ec", instrs[5].Address())
