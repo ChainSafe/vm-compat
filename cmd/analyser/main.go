@@ -79,7 +79,10 @@ func main() {
 		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
 
-	flushOutput(issues)
+	err = flushOutput(issues)
+	if err != nil {
+		log.Fatalf("Unable to flush output: %s", err)
+	}
 }
 
 func disassemble(profile *profile.VMProfile, paths string) (string, error) {
@@ -120,30 +123,36 @@ func getSyscallIssues(profile *profile.VMProfile, arg string) ([]*analyser.Issue
 	return append(issues, issues2...), nil
 }
 
-func flushOutput(issues []*analyser.Issue) {
+func flushOutput(issues []*analyser.Issue) error {
 	output := os.Stdout
 	if *reportOutputPath != "" {
 		path, err := filepath.Abs(*reportOutputPath)
 		if err != nil {
-			log.Fatalf("Unable to determine absolute path to output file: %s", err)
+			log.Printf("Unable to determine absolute path to output file: %s", err)
+			return err
 		}
 
-		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			log.Fatalf("Unable to open output file: %s", err)
+			log.Printf("Unable to open output file: %s", err)
+			return err
 		}
-		defer output.Close()
+		defer func() {
+			_ = output.Close()
+		}()
 	}
 	switch *format {
 	case "text":
 		err := renderer.NewTextRenderer().Render(issues, output)
 		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
+			log.Printf("Unable to render: %s", err)
+			return err
 		}
 	case "json":
 		err := renderer.NewJSONRenderer().Render(issues, output)
 		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
+			log.Printf("Unable to render: %s", err)
+			return err
 		}
 	default:
 		log.Fatalf("Invalid format: %s", *format)

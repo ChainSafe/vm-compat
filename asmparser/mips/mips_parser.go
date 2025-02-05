@@ -44,7 +44,9 @@ func (p *parserImpl) Parse(path string) (asmparser.CallGraph, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)
 	}
-	defer codefile.Close()
+	defer func() {
+		_ = codefile.Close()
+	}()
 
 	var currSegment *segment
 	graph := newCallGraph()
@@ -260,7 +262,7 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 		return 0, fmt.Errorf("invalid instruction type: expected MIPS instruction, got %T", instr)
 	}
 	offset := ins.address - s.address
-	indexOfInstr := offset / 4
+	indexOfInstr := offset / uint64(4)
 
 	for i := int(indexOfInstr) - 1; i >= 0; i-- {
 		currInstr := s.instructions[i]
