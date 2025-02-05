@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/common"
 	"github.com/ChainSafe/vm-compat/profile"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -15,6 +16,14 @@ import (
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
+
+var syscallAPIs = []string{
+	"syscall.RawSyscall6",
+	"syscall.rawSyscallNoError",
+	"syscall.rawVforkSyscall",
+	"syscall.runtime_doAllThreadsSyscall",
+	"runtime/internal/syscall.Syscall6",
+}
 
 // goSyscallAnalyser analyzes system calls in Go binaries.
 type goSyscallAnalyser struct {
@@ -30,9 +39,15 @@ func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
 //
 //nolint:cyclop
 func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
+	// Find the Go module root for correct context
+	modRoot, err := common.FindGoModuleRoot(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find Go module root: %w", err)
+	}
 	cfg := &packages.Config{
 		Mode:       packages.LoadAllSyntax,
 		BuildFlags: []string{},
+		Dir:        modRoot,
 		Env: append(
 			os.Environ(),
 			fmt.Sprintf("GOOS=%s", a.profile.GOOS),

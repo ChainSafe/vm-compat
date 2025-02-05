@@ -22,8 +22,9 @@ const (
 
 var (
 	// Regular expressions for parsing assembly blocks and instructions.
+	// It's only applicable for a file generated with llvm-objdump
 	blockStartRegex  = regexp.MustCompile(`^([0-9a-fA-F]+)\s+<([^>]+)>:$`)
-	instructionRegex = regexp.MustCompile(`^([0-9a-fA-F]+)(:)\s+([0-9a-fA-F]+)\s+([a-z]+)\s*(.*)`)
+	instructionRegex = regexp.MustCompile(`^([0-9a-fA-F]+)(:)\s+((?:[0-9a-fA-F]{2}\s+){4})\s+([a-z]+(?:\.[a-z0-9]*)*)\s*(.*)`)
 )
 
 // parserImpl implements the asmparser.Parser interface.
@@ -110,7 +111,7 @@ func parseInstruction(line string) (*instruction, error) {
 	if len(matches) <= 4 {
 		return nil, fmt.Errorf("failed to parse instruction: %s", line)
 	}
-	instr, err := decodeInstruction(matches[3])
+	instr, err := decodeInstruction(strings.ReplaceAll(matches[3], " ", ""))
 	if err != nil {
 		return nil, fmt.Errorf("invalid MIPS instruction format: %w", err)
 	}
