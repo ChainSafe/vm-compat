@@ -142,6 +142,8 @@ linters-settings:
           - github.com
           - imploy
           - $all # List of file globs that will match this list of settings to compare against.
+          - golang.org
+          - gopkg.in
 
 
   misspell:
