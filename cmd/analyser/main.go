@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"html/template"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,18 +17,11 @@ import (
 )
 
 var (
-	vmProfile = flag.String("vm-profile", "", "vm profile config")
-	analyzer  = flag.String("analyzer", "opcode", "analyzer to run. Options: opcode, syscall")
-	mode      = flag.String(
-		"mode",
-		"binary",
-		"mode to run. only required for mode `opcode`. Options: binary, source")
-	disassemblyOutputPath = flag.String(
-		"disassembly-output-path",
-		"",
-		"output file path for opcode assembly code. optional. only required for mode `opcode`. only specify if you want to write assembly code to a file")
-	format           = flag.String("format", "text", "format of the output. Options: json, text")
-	reportOutputPath = flag.String("report-output-path", "", "output file path for report to pass. optional. default: stdout")
+	vmProfile         = flag.String("vm-profile", "", "vm profile config")
+	analyzer          = flag.String("analyzer", "", "analyzer to run. Options: opcode, syscall")
+	disassemblyOutput = flag.String("disassembly-output-path", "", "output file path for opcode assembly code.")
+	format            = flag.String("format", "text", "format of the output. Options: json, text")
+	reportOutputPath  = flag.String("report-output-path", "", "output file path for report. Default: stdout")
 )
 
 const usage = `
@@ -40,101 +32,115 @@ Usage:
   callgraph [-analyzer=opcode|syscall] [-vm-profile=path_to_config] package...
 `
 
-type WebData struct {
-	Packages  string
-	GraphJSON template.JS
-}
-
 func main() {
 	flag.Parse()
-
 	args := flag.Args()
+
 	if len(args) != 1 {
 		fmt.Fprint(os.Stderr, usage)
 		return
 	}
 
-	profile, err := profile.LoadProfile(*vmProfile)
+	prof, err := profile.LoadProfile(*vmProfile)
 	if err != nil {
 		log.Fatalf("Error loading profile: %v", err)
 	}
-	//*disassemblyOutputPath, err = disassemble(profile, args[0])
-	//if err != nil {
-	//	log.Fatalf("Error disassembling the file: %v", err)
-	//}
 
-	var issues []*analyser.Issue
-	switch *analyzer {
-	case "opcode":
-		issues, err = opcode.NewAnalyser(profile).Analyze(*disassemblyOutputPath)
-		if err != nil {
-			log.Fatalf("Unable to analyze Opcode: %s", err)
-		}
-	case "syscall":
-		issues, err = syscall.NewGOSyscallAnalyser(profile).Analyze(args[0])
-		if err != nil {
-			log.Fatalf("Unable to analyze Syscalls: %s", err)
-		}
-		issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(*disassemblyOutputPath)
-		if err != nil {
-			log.Fatalf("Unable to analyze Syscalls: %s", err)
-		}
-		issues = append(issues, issues2...)
-	default:
-		log.Fatalf("Invalid analyzer: %s", *analyzer)
+	disassemblyPath, err := disassemble(prof, args[0], *disassemblyOutput)
+	if err != nil {
+		log.Fatalf("Error disassembling the file: %v", err)
 	}
 
-	output := os.Stdout
-	if *reportOutputPath != "" {
-		path, err := filepath.Abs(*reportOutputPath)
-		if err != nil {
-			log.Fatalf("Unable to determine absolute path to output file: %s", err)
-		}
-
-		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			log.Fatalf("Unable to open output file: %s", err)
-		}
-		defer output.Close()
+	issues, err := analyze(prof, args[0], disassemblyPath, *analyzer)
+	if err != nil {
+		log.Fatalf("Analysis failed: %v", err)
 	}
-	switch *format {
-	case "text":
-		err = renderer.NewTextRenderer().Render(issues, output)
-		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
-		}
-	case "json":
-		err = renderer.NewJSONRenderer().Render(issues, output)
-		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
-		}
-	default:
-		log.Fatalf("Invalid format: %s", *format)
+
+	if err := writeReport(issues, *format, *reportOutputPath); err != nil {
+		log.Fatalf("Unable to write report: %v", err)
 	}
 }
 
-func disassemble(profile *profile.VMProfile, paths string) (string, error) {
-	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, profile.GOOS, profile.GOARCH)
+// disassemble extracts assembly output for analysis.
+func disassemble(prof *profile.VMProfile, path, outputPath string) (string, error) {
+	dis, err := manager.NewDisassembler(disassembler.TypeObjdump, prof.GOOS, prof.GOARCH)
 	if err != nil {
 		return "", err
 	}
 
-	if *disassemblyOutputPath == "" {
-		// add a temporary path to write the disassembly output
-		*disassemblyOutputPath = filepath.Join(os.TempDir(), "temp_assembly_output")
+	if outputPath == "" {
+		outputPath = filepath.Join(os.TempDir(), "temp_assembly_output")
 	}
 
-	switch *mode {
-	case "binary":
-		_, err = dis.Disassemble(disassembler.SourceBinary, paths, *disassemblyOutputPath)
+	_, err = dis.Disassemble(disassembler.SourceFile, path, outputPath)
+	return outputPath, err
+}
+
+// analyze runs the selected analyzer(s).
+func analyze(prof *profile.VMProfile, path, disassemblyPath, mode string) ([]*analyser.Issue, error) {
+	var issues []*analyser.Issue
+	var err error
+
+	switch mode {
+	case "opcode":
+		issues, err = opcode.NewAnalyser(prof).Analyze(disassemblyPath)
+	case "syscall":
+		issues1, err1 := syscall.NewGOSyscallAnalyser(prof).Analyze(path)
+		issues2, err2 := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath)
+		err = combineErrors(err1, err2)
+		issues = append(issues1, issues2...)
+	default: // Run both analyzers
+		issues1, err1 := opcode.NewAnalyser(prof).Analyze(disassemblyPath)
+		issues2, err2 := syscall.NewGOSyscallAnalyser(prof).Analyze(path)
+		issues3, err3 := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath)
+		err = combineErrors(err1, err2, err3)
+		issues = append(issues1, append(issues2, issues3...)...)
+	}
+
+	return issues, err
+}
+
+// writeReport outputs the results in the specified format.
+func writeReport(issues []*analyser.Issue, format, outputPath string) error {
+	var output *os.File
+	if outputPath == "" {
+		output = os.Stdout
+	} else {
+		absPath, err := filepath.Abs(outputPath)
 		if err != nil {
-			return "", err
+			return fmt.Errorf("unable to determine absolute path: %w", err)
 		}
-	case "source":
-		_, err = dis.Disassemble(disassembler.SourceFile, paths, *disassemblyOutputPath)
+		output, err = os.OpenFile(absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
-			return "", err
+			return fmt.Errorf("unable to open output file: %w", err)
+		}
+		defer output.Close()
+	}
+
+	var rendererInstance renderer.Renderer
+	switch format {
+	case "text":
+		rendererInstance = renderer.NewTextRenderer()
+	case "json":
+		rendererInstance = renderer.NewJSONRenderer()
+	default:
+		return fmt.Errorf("invalid format: %s", format)
+	}
+
+	return rendererInstance.Render(issues, output)
+}
+
+// combineErrors merges multiple errors into a single error.
+func combineErrors(errs ...error) error {
+	var combinedErr error
+	for _, err := range errs {
+		if err != nil {
+			if combinedErr == nil {
+				combinedErr = err
+			} else {
+				combinedErr = fmt.Errorf("%v; %w", combinedErr, err)
+			}
 		}
 	}
-	return *disassemblyOutputPath, nil
+	return combinedErr
 }

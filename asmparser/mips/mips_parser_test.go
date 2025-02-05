@@ -20,19 +20,19 @@ func TestParse(t *testing.T) {
 Disassembly of section .text:
 
 0000000000011000 <internal/abi.Kind.String>:
-   11000:   dfc10010  ld at,16(s8)
-   11004:   003d082b  sltu at,at,sp
-   11008:	0000000c 	syscall
-   1100c:	0c023676 	jal	8d9d8 <runtime.read>
-   11010:   00000000  nop
+   11000:   df c1 00 10  ld at,16(s8)
+   11004:   00 3d 08 2b  sltu at,at,sp
+   11008:	00 00 00 0c 	syscall
+   1100c:	0c 02 36 76 	jal	8d9d8 <runtime.read>
+   11010:   00 00 00 00  nop
 000000000008d9d8 <runtime.read>:
-   8d9d8:	8fa40008 	lw	a0,8(sp)
-   8d9dc:	dfa50010 	ld	a1,16(sp)
-   8d9e0:	8fa60018 	lw	a2,24(sp)
-   8d9e4:	64021388 	daddiu	v0,zero,5000
-   8d9e8:	0000000c 	syscall
-   8d9ec:	10e00002 	beqz	a3,8d9f8 <runtime.read+0x20>
-   8d9f0:	0000000f 	sync
+   8d9d8:	8f a4 00 08 	lw	a0,8(sp)
+   8d9dc:	df a5 00 10 	ld	a1,16(sp)
+   8d9e0:	8f a6 00 18 	lw	a2,24(sp)
+   8d9e4:	64 02 13 88 	daddiu	v0,zero,5000
+   8d9e8:	00 00 00 0c 	syscall
+   8d9ec:	10 e0 00 02 	beqz	a3,8d9f8 <runtime.read+0x20>
+   8d9f0:	00 00 00 0f 	sync
 `
 	if _, err := tempFile.WriteString(content); err != nil {
 		t.Fatal(err)

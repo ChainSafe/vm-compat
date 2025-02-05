@@ -48,12 +48,10 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 			if !instruction.IsSyscall() {
 				continue
 			}
-
-			// Ignore syscalls from the runtime package
-			if segmentLabel == "runtime/internal/syscall.Syscall6" {
+			// Ignore indirect syscall calling from syscall apis
+			if slices.Contains(syscallAPIs, segmentLabel) {
 				continue
 			}
-
 			syscallNum, err := segment.RetrieveSyscallNum(instruction)
 			if err != nil {
 				return nil, fmt.Errorf("failed to retrieve syscall number: %w", err)

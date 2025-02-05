@@ -51,20 +51,7 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 	}
 	issues := make([]*analyser.Issue, 0)
 	for _, segment := range callGraph.Segments() {
-		//if slices.Contains(ignoreSegments, segment.Label()) {
-		//	fmt.Println("Innoring")
-		//	continue
-		//}
-		//if shouldIgnoreSegment(callGraph, segment) {
-		//	continue
-		//}
-
 		for _, instruction := range segment.Instructions() {
-			//if instruction.OpcodeHex() == "0x11" {
-			//	fmt.Println(segment.Label())
-			//	fmt.Println(callGraph.ParentsOf(segment))
-			//}
-
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
 				issues = append(issues, &analyser.Issue{
 					File:   path,
