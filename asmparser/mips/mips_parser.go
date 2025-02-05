@@ -21,8 +21,8 @@ const (
 
 var (
 	// Regular expressions for parsing assembly blocks and instructions.
-	blockStartRegex  = regexp.MustCompile("^([0-9a-fA-F]+)\\s+<([^>]+)>:$")
-	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s+([0-9a-fA-F]+)\\s+([a-z]+)\\s*(.*)")
+	blockStartRegex  = regexp.MustCompile(`^([0-9a-fA-F]+)\s+<([^>]+)>:$`)
+	instructionRegex = regexp.MustCompile(`^([0-9a-fA-F]+)(:)\s+([0-9a-fA-F]+)\s+([a-z]+)\s*(.*)`)
 )
 
 // parserImpl implements the asmparser.Parser interface.
@@ -131,7 +131,7 @@ func decodeInstruction(str string) (*instruction, error) {
 
 	decodedInstruction := &instruction{
 		opcode:   opcode,
-		operands: make([]int64, 0),
+		operands: make([]uint32, 0),
 	}
 
 	switch opcode {
@@ -142,17 +142,23 @@ func decodeInstruction(str string) (*instruction, error) {
 		shamt := (instr >> 6) & 0x1F
 		funcCode := instr & 0x3F
 		decodedInstruction.instType = asmparser.RType
-		decodedInstruction.operands = append(decodedInstruction.operands, int64(rs), int64(rt), int64(rd), int64(shamt), int64(funcCode))
+		decodedInstruction.operands = append(decodedInstruction.operands,
+			rs,
+			rt,
+			rd,
+			shamt,
+			funcCode,
+		)
 	case 0x02, 0x03: // J-Type Instructions (Jump)
 		targetAddress := (instr & 0x03FFFFFF) << 2
 		decodedInstruction.instType = asmparser.JType
-		decodedInstruction.operands = append(decodedInstruction.operands, int64(targetAddress))
+		decodedInstruction.operands = append(decodedInstruction.operands, targetAddress)
 	default: // I-Type Instructions (e.g., daddi)
 		rs := (instr >> 21) & 0x1F
 		rt := (instr >> 16) & 0x1F
-		immediate := int16(instr & 0xFFFF)
+		immediate := instr & 0xFFFF
 		decodedInstruction.instType = asmparser.IType
-		decodedInstruction.operands = append(decodedInstruction.operands, int64(rs), int64(rt), int64(immediate))
+		decodedInstruction.operands = append(decodedInstruction.operands, rs, rt, immediate)
 	}
 	return decodedInstruction, nil
 }
@@ -164,7 +170,7 @@ type instruction struct {
 	address      uint64
 	label        string // Used if this instruction marks the start of a segment
 	opcode       uint32
-	operands     []int64 // RS, RT, RD, Shamt, FunctionCode, Immediate, TargetAddress
+	operands     []uint32 // RS, RT, RD, Shamt, FunctionCode, Immediate, TargetAddress
 }
 
 // isSegmentStart checks if the instruction marks the beginning of a segment.
@@ -205,7 +211,7 @@ func (i *instruction) isJump() bool {
 }
 
 // jumpTarget returns the jump target address of a jump instruction.
-func (i *instruction) jumpTarget() int64 {
+func (i *instruction) jumpTarget() uint32 {
 	return i.operands[0]
 }
 
@@ -258,13 +264,13 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 
 	for i := int(indexOfInstr) - 1; i >= 0; i-- {
 		currInstr := s.instructions[i]
-		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == int64(registerV0) {
+		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {
 			return 0, fmt.Errorf("unsupported operation: register v0 modified before syscall assignment at %s",
 				currInstr.Address())
 		}
-		if currInstr.instType == asmparser.IType && len(currInstr.operands) > 2 && currInstr.operands[1] == int64(registerV0) {
+		if currInstr.instType == asmparser.IType && len(currInstr.operands) > 2 && currInstr.operands[1] == registerV0 {
 			if currInstr.opcode == 0x19 || currInstr.opcode == 0x09 { // daddui or addui
-				if currInstr.operands[0] != int64(registerZero) {
+				if currInstr.operands[0] != registerZero {
 					return 0, fmt.Errorf("unsupported operation: syscall number must be loaded from $zero at address %s",
 						currInstr.Address())
 				}

@@ -43,7 +43,7 @@ func (o *Objdump) Disassemble(mode disassembler.Source, target string, outputPat
 		if err != nil {
 			return "", fmt.Errorf("failed to get absolute path of output file: %w", err)
 		}
-		err = os.WriteFile(absOutputPath, []byte(disassembly), 0644)
+		err = os.WriteFile(absOutputPath, []byte(disassembly), 0600)
 		if err != nil {
 			return "", fmt.Errorf("failed to write to output file: %w", err)
 		}
