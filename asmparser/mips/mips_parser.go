@@ -70,6 +70,7 @@ func (p *parserImpl) Parse(path string) (asmparser.CallGraph, error) {
 			}
 			currSegment.instructions = append(currSegment.instructions, instr)
 			if instr.isJump() {
+				//nolint
 				graph.addParent(uint64(instr.jumpTarget()), currSegment.address)
 			}
 		}
