@@ -134,7 +134,7 @@ func decodeInstruction(str string) (*instruction, error) {
 
 	decodedInstruction := &instruction{
 		opcode:   opcode,
-		operands: make([]uint32, 0),
+		operands: make([]int64, 0),
 	}
 
 	switch opcode {
@@ -146,22 +146,30 @@ func decodeInstruction(str string) (*instruction, error) {
 		funcCode := instr & 0x3F
 		decodedInstruction.instType = asmparser.RType
 		decodedInstruction.operands = append(decodedInstruction.operands,
-			rs,
-			rt,
-			rd,
-			shamt,
-			funcCode,
+			//nolint
+			int64(rs),
+			//nolint
+			int64(rt),
+			//nolint
+			int64(rd),
+			//nolint
+			int64(shamt),
+			//nolint
+			int64(funcCode),
 		)
 	case 0x02, 0x03: // J-Type Instructions (Jump)
 		targetAddress := (instr & 0x03FFFFFF) << 2
 		decodedInstruction.instType = asmparser.JType
-		decodedInstruction.operands = append(decodedInstruction.operands, targetAddress)
+		//nolint
+		decodedInstruction.operands = append(decodedInstruction.operands, int64(targetAddress))
 	default: // I-Type Instructions (e.g., daddi)
 		rs := (instr >> 21) & 0x1F
 		rt := (instr >> 16) & 0x1F
-		immediate := instr & 0xFFFF
+		//nolint
+		immediate := int16(instr & 0xFFFF)
 		decodedInstruction.instType = asmparser.IType
-		decodedInstruction.operands = append(decodedInstruction.operands, rs, rt, immediate)
+		//nolint
+		decodedInstruction.operands = append(decodedInstruction.operands, int64(rs), int64(rt), int64(immediate))
 	}
 	return decodedInstruction, nil
 }
@@ -173,7 +181,7 @@ type instruction struct {
 	address      uint64
 	label        string // Used if this instruction marks the start of a segment
 	opcode       uint32
-	operands     []uint32 // RS, RT, RD, Shamt, FunctionCode, Immediate, TargetAddress
+	operands     []int64 // RS, RT, RD, Shamt, FunctionCode, Immediate, TargetAddress
 }
 
 // isSegmentStart checks if the instruction marks the beginning of a segment.
@@ -214,7 +222,7 @@ func (i *instruction) isJump() bool {
 }
 
 // jumpTarget returns the jump target address of a jump instruction.
-func (i *instruction) jumpTarget() uint32 {
+func (i *instruction) jumpTarget() int64 {
 	return i.operands[0]
 }
 
