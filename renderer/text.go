@@ -1,3 +1,4 @@
+// Package renderer provides a way to render issues in different formats.
 package renderer
 
 import (
@@ -34,7 +35,7 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	totalIssues := len(groupedIssues)
 
 	// Sort issue messages for consistent output
-	var sortedMessages []string
+	var sortedMessages = make([]string, 0, len(groupedIssues))
 	for msg := range groupedIssues {
 		sortedMessages = append(sortedMessages, msg)
 	}

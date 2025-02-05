@@ -1,3 +1,4 @@
+// Package opcode implements analyser.Analyzer for detecting incompatible opcodes.
 package opcode
 
 import (

@@ -71,45 +71,17 @@ func main() {
 			log.Fatalf("Unable to analyze Opcode: %s", err)
 		}
 	case "syscall":
-		issues, err = syscall.NewGOSyscallAnalyser(profile).Analyze(args[0])
+		issues, err = getSyscallIssues(profile, args[0])
 		if err != nil {
-			log.Fatalf("Unable to analyze Syscalls: %s", err)
+			log.Fatalf("Unable to analyze Syscall: %s", err)
 		}
-		issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(*disassemblyOutputPath)
-		if err != nil {
-			log.Fatalf("Unable to analyze Syscalls: %s", err)
-		}
-		issues = append(issues, issues2...)
 	default:
 		log.Fatalf("Invalid analyzer: %s", *analyzer)
 	}
 
-	output := os.Stdout
-	if *reportOutputPath != "" {
-		path, err := filepath.Abs(*reportOutputPath)
-		if err != nil {
-			log.Fatalf("Unable to determine absolute path to output file: %s", err)
-		}
-
-		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-		if err != nil {
-			log.Fatalf("Unable to open output file: %s", err)
-		}
-		defer output.Close()
-	}
-	switch *format {
-	case "text":
-		err = renderer.NewTextRenderer().Render(issues, output)
-		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
-		}
-	case "json":
-		err = renderer.NewJSONRenderer().Render(issues, output)
-		if err != nil {
-			log.Fatalf("Unable to render: %s", err)
-		}
-	default:
-		log.Fatalf("Invalid format: %s", *format)
+	err = flushOutput(issues)
+	if err != nil {
+		log.Fatalf("Unable to flush output: %s", err)
 	}
 }
 
@@ -137,4 +109,54 @@ func disassemble(profile *profile.VMProfile, paths string) (string, error) {
 		}
 	}
 	return *disassemblyOutputPath, nil
+}
+
+func getSyscallIssues(profile *profile.VMProfile, arg string) ([]*analyser.Issue, error) {
+	issues, err := syscall.NewGOSyscallAnalyser(profile).Analyze(arg)
+	if err != nil {
+		return nil, err
+	}
+	issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(*disassemblyOutputPath)
+	if err != nil {
+		return nil, err
+	}
+	return append(issues, issues2...), nil
+}
+
+func flushOutput(issues []*analyser.Issue) error {
+	output := os.Stdout
+	if *reportOutputPath != "" {
+		path, err := filepath.Abs(*reportOutputPath)
+		if err != nil {
+			log.Printf("Unable to determine absolute path to output file: %s", err)
+			return err
+		}
+
+		output, err = os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		if err != nil {
+			log.Printf("Unable to open output file: %s", err)
+			return err
+		}
+		defer func() {
+			_ = output.Close()
+		}()
+	}
+	switch *format {
+	case "text":
+		err := renderer.NewTextRenderer().Render(issues, output)
+		if err != nil {
+			log.Printf("Unable to render: %s", err)
+			return err
+		}
+	case "json":
+		err := renderer.NewJSONRenderer().Render(issues, output)
+		if err != nil {
+			log.Printf("Unable to render: %s", err)
+			return err
+		}
+	default:
+		log.Printf("Invalid format: %s", *format)
+		return fmt.Errorf("invalid format: %s", *format)
+	}
+	return nil
 }

@@ -17,7 +17,7 @@ get_lint:
 .PHONY: lint
 lint: get_lint
 	@echo "  >  \033[32mRunning lint...\033[0m "
-	./bin/golangci-lint run --config=./.golangci.yaml --fix
+	./bin/golangci-lint run --config=./.golangci.yml --fix
 
 .PHONY: test
 test:
