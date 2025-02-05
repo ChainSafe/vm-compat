@@ -78,26 +78,23 @@ func disassemble(prof *profile.VMProfile, path, outputPath string) (string, erro
 
 // analyze runs the selected analyzer(s).
 func analyze(prof *profile.VMProfile, path, disassemblyPath, mode string) ([]*analyser.Issue, error) {
-	var issues []*analyser.Issue
-	var err error
-
-	switch mode {
-	case "opcode":
-		issues, err = opcode.NewAnalyser(prof).Analyze(disassemblyPath)
-	case "syscall":
-		issues1, err1 := syscall.NewGOSyscallAnalyser(prof).Analyze(path)
-		issues2, err2 := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath)
-		err = combineErrors(err1, err2)
-		issues = append(issues1, issues2...)
-	default: // Run both analyzers
-		issues1, err1 := opcode.NewAnalyser(prof).Analyze(disassemblyPath)
-		issues2, err2 := syscall.NewGOSyscallAnalyser(prof).Analyze(path)
-		issues3, err3 := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath)
-		err = combineErrors(err1, err2, err3)
-		issues = append(issues1, append(issues2, issues3...)...)
+	if mode == "opcode" {
+		return opcode.NewAnalyser(prof).Analyze(disassemblyPath)
+	}
+	if mode == "syscall" {
+		return analyzeSyscalls(prof, path, disassemblyPath)
 	}
 
-	return issues, err
+	opIssues, err := opcode.NewAnalyser(prof).Analyze(disassemblyPath)
+	if err != nil {
+		return nil, err
+	}
+	sysIssues, err := analyzeSyscalls(prof, path, disassemblyPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(opIssues, sysIssues...), nil
 }
 
 // writeReport outputs the results in the specified format.
@@ -110,11 +107,13 @@ func writeReport(issues []*analyser.Issue, format, outputPath string) error {
 		if err != nil {
 			return fmt.Errorf("unable to determine absolute path: %w", err)
 		}
-		output, err = os.OpenFile(absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		output, err = os.OpenFile(absPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
 			return fmt.Errorf("unable to open output file: %w", err)
 		}
-		defer output.Close()
+		defer func() {
+			_ = output.Close()
+		}()
 	}
 
 	var rendererInstance renderer.Renderer
@@ -130,17 +129,14 @@ func writeReport(issues []*analyser.Issue, format, outputPath string) error {
 	return rendererInstance.Render(issues, output)
 }
 
-// combineErrors merges multiple errors into a single error.
-func combineErrors(errs ...error) error {
-	var combinedErr error
-	for _, err := range errs {
-		if err != nil {
-			if combinedErr == nil {
-				combinedErr = err
-			} else {
-				combinedErr = fmt.Errorf("%v; %w", combinedErr, err)
-			}
-		}
+func analyzeSyscalls(profile *profile.VMProfile, source string, disassemblyPath string) ([]*analyser.Issue, error) {
+	issues, err := syscall.NewGOSyscallAnalyser(profile).Analyze(source)
+	if err != nil {
+		return nil, err
 	}
-	return combinedErr
+	issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(disassemblyPath)
+	if err != nil {
+		return nil, err
+	}
+	return append(issues, issues2...), nil
 }

@@ -1,3 +1,4 @@
+// Package objdump provides a disassembler for generating disassembly from binaries.
 package objdump
 
 import (
@@ -44,7 +45,7 @@ func (o *Objdump) Disassemble(mode disassembler.Source, target string, outputPat
 		if err != nil {
 			return "", fmt.Errorf("failed to get absolute path of output file: %w", err)
 		}
-		err = os.WriteFile(absOutputPath, []byte(disassembly), 0644)
+		err = os.WriteFile(absOutputPath, []byte(disassembly), 0600)
 		if err != nil {
 			return "", fmt.Errorf("failed to write to output file: %w", err)
 		}
@@ -56,7 +57,9 @@ func (o *Objdump) Disassemble(mode disassembler.Source, target string, outputPat
 func generateSourceAssembly(target string, goos, arch string) (string, error) {
 	// Build the binary
 	tempFile := filepath.Join(os.TempDir(), "temp_binary")
-	defer os.Remove(tempFile)
+	defer func() {
+		_ = os.Remove(tempFile)
+	}()
 
 	absPath, err := filepath.Abs(target)
 	if err != nil {
@@ -69,6 +72,7 @@ func generateSourceAssembly(target string, goos, arch string) (string, error) {
 		return "", fmt.Errorf("failed to find go module root: %w", err)
 	}
 
+	//nolint:gosec
 	buildCmd := exec.Command("go", "build", "-o", tempFile, absPath)
 	buildCmd.Dir = modRoot // Set the working directory to the module root
 	buildCmd.Env = append(os.Environ(),
@@ -81,13 +85,15 @@ func generateSourceAssembly(target string, goos, arch string) (string, error) {
 	if arch == "mips64" {
 		buildCmd.Env = append(buildCmd.Env, "GOMIPS64=softfloat")
 	}
-	if output, err := buildCmd.CombinedOutput(); err != nil {
+	var output []byte
+	if output, err = buildCmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("failed to build binary: %w\nOutput:\n%s", err, string(output))
 	}
 
 	// Generate assembly output
+	//nolint:gosec
 	cmd := exec.Command("llvm-objdump", "-d", tempFile)
-	output, err := cmd.CombinedOutput()
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate source assembly: %w\nOutput:\n%s", err, string(output))
 	}
@@ -97,6 +103,7 @@ func generateSourceAssembly(target string, goos, arch string) (string, error) {
 func generateBinaryDisassembly(target string) (string, error) {
 	// Run objdump on the binary
 	objdumpCmd := exec.Command("llvm-objdump", "-d", target)
+	//nolint:gosec
 	output, err := objdumpCmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate binary disassembly: %w\nOutput:\n%s", err, string(output))

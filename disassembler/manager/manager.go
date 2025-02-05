@@ -1,3 +1,4 @@
+// Package manager provides a way to manage disassemblers.
 package manager
 
 import (

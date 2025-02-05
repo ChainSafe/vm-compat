@@ -1,3 +1,4 @@
+// Package common holds common utility functions
 package common
 
 import (

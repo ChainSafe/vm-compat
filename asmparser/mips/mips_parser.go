@@ -4,6 +4,7 @@ package mips
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,8 +23,8 @@ const (
 var (
 	// Regular expressions for parsing assembly blocks and instructions.
 	// It's only applicable for a file generated with llvm-objdump
-	blockStartRegex  = regexp.MustCompile("^([0-9a-fA-F]+)\\s+<([^>]+)>:$")
-	instructionRegex = regexp.MustCompile("^([0-9a-fA-F]+)(:)\\s+((?:[0-9a-fA-F]{2}\\s+){4})\\s+([a-z]+(?:\\.[a-z0-9]*)*)\\s*(.*)")
+	blockStartRegex  = regexp.MustCompile(`^([0-9a-fA-F]+)\s+<([^>]+)>:$`)
+	instructionRegex = regexp.MustCompile(`^([0-9a-fA-F]+)(:)\s+((?:[0-9a-fA-F]{2}\s+){4})\s+([a-z]+(?:\.[a-z0-9]*)*)\s*(.*)`)
 )
 
 // parserImpl implements the asmparser.Parser interface.
@@ -45,7 +46,9 @@ func (p *parserImpl) Parse(path string) (asmparser.CallGraph, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening file: %w", err)
 	}
-	defer codefile.Close()
+	defer func() {
+		_ = codefile.Close()
+	}()
 
 	var currSegment *segment
 	graph := newCallGraph()
@@ -68,6 +71,7 @@ func (p *parserImpl) Parse(path string) (asmparser.CallGraph, error) {
 			}
 			currSegment.instructions = append(currSegment.instructions, instr)
 			if instr.isJump() {
+				//nolint
 				graph.addParent(uint64(instr.jumpTarget()), currSegment.address)
 			}
 		}
@@ -143,16 +147,30 @@ func decodeInstruction(str string) (*instruction, error) {
 		shamt := (instr >> 6) & 0x1F
 		funcCode := instr & 0x3F
 		decodedInstruction.instType = asmparser.RType
-		decodedInstruction.operands = append(decodedInstruction.operands, int64(rs), int64(rt), int64(rd), int64(shamt), int64(funcCode))
+		decodedInstruction.operands = append(decodedInstruction.operands,
+			//nolint
+			int64(rs),
+			//nolint
+			int64(rt),
+			//nolint
+			int64(rd),
+			//nolint
+			int64(shamt),
+			//nolint
+			int64(funcCode),
+		)
 	case 0x02, 0x03: // J-Type Instructions (Jump)
 		targetAddress := (instr & 0x03FFFFFF) << 2
 		decodedInstruction.instType = asmparser.JType
+		//nolint
 		decodedInstruction.operands = append(decodedInstruction.operands, int64(targetAddress))
 	default: // I-Type Instructions (e.g., daddi)
 		rs := (instr >> 21) & 0x1F
 		rt := (instr >> 16) & 0x1F
+		//nolint
 		immediate := int16(instr & 0xFFFF)
 		decodedInstruction.instType = asmparser.IType
+		//nolint
 		decodedInstruction.operands = append(decodedInstruction.operands, int64(rs), int64(rt), int64(immediate))
 	}
 	return decodedInstruction, nil
@@ -255,17 +273,18 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 		return 0, fmt.Errorf("invalid instruction type: expected MIPS instruction, got %T", instr)
 	}
 	offset := ins.address - s.address
-	indexOfInstr := offset / 4
+	indexOfInstr := offset / uint64(4)
 
-	for i := int(indexOfInstr) - 1; i >= 0; i-- {
+	// every value of i is a uint64 which is always >= 0, hence check against max uint64
+	for i := indexOfInstr - 1; i < math.MaxUint64; i-- {
 		currInstr := s.instructions[i]
-		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == int64(registerV0) {
+		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {
 			return 0, fmt.Errorf("unsupported operation: register v0 modified before syscall assignment at %s",
 				currInstr.Address())
 		}
-		if currInstr.instType == asmparser.IType && len(currInstr.operands) > 2 && currInstr.operands[1] == int64(registerV0) {
+		if currInstr.instType == asmparser.IType && len(currInstr.operands) > 2 && currInstr.operands[1] == registerV0 {
 			if currInstr.opcode == 0x19 || currInstr.opcode == 0x09 { // daddui or addui
-				if currInstr.operands[0] != int64(registerZero) {
+				if currInstr.operands[0] != registerZero {
 					return 0, fmt.Errorf("unsupported operation: syscall number must be loaded from $zero at address %s",
 						currInstr.Address())
 				}

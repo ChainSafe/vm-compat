@@ -36,6 +36,8 @@ func NewGOSyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
 }
 
 // Analyze scans a Go binary for syscalls and detects compatibility issues.
+//
+//nolint:cyclop
 func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 	// Find the Go module root for correct context
 	modRoot, err := common.FindGoModuleRoot(path)
@@ -134,22 +136,7 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
 			return []int{valInt}
 		}
 	case *ssa.Global:
-		// Iterate through instructions in the Init function
-		// Iterate through all functions in the package to find the initialization
-		for _, member := range v.Pkg.Members {
-			if fn, ok := member.(*ssa.Function); ok {
-				for _, block := range fn.Blocks {
-					for _, instr := range block.Instrs {
-						// Look for Store instructions
-						if store, ok := instr.(*ssa.Store); ok {
-							if store.Addr == v {
-								result = append(result, traceSyscalls(store.Val, nil)...)
-							}
-						}
-					}
-				}
-			}
-		}
+		result = append(result, traceInit(v, v.Pkg.Members)...)
 	case *ssa.Parameter:
 		prev := edge.Caller.In
 		for _, p := range prev {
@@ -179,6 +166,26 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
 	default:
 		fmt.Printf("Unhandled value type: %T\n", v)
 		panic("not handled")
+	}
+	return result
+}
+
+func traceInit(v *ssa.Global, members map[string]ssa.Member) (result []int) {
+	// Iterate through instructions in the Init function
+	// Iterate through all functions in the package to find the initialization
+	for _, member := range members {
+		if fn, ok := member.(*ssa.Function); ok {
+			for _, block := range fn.Blocks {
+				for _, instr := range block.Instrs {
+					// Look for Store instructions
+					if store, ok := instr.(*ssa.Store); ok {
+						if store.Addr == v {
+							result = append(result, traceSyscalls(store.Val, nil)...)
+						}
+					}
+				}
+			}
+		}
 	}
 	return result
 }
