@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	vmProfile         = flag.String("vm-profile", "", "vm profile config")
-	analyzer          = flag.String("analyzer", "", "analyzer to run. Options: opcode, syscall")
+	vmProfile         = flag.String("vm-profile", "./profile/cannon/cannon-64.yaml", "vm profile config")
+	analyzer          = flag.String("analyzer", "syscall", "analyzer to run. Options: opcode, syscall")
 	disassemblyOutput = flag.String("disassembly-output-path", "", "output file path for opcode assembly code.")
 	format            = flag.String("format", "text", "format of the output. Options: json, text")
 	reportOutputPath  = flag.String("report-output-path", "", "output file path for report. Default: stdout")
@@ -56,7 +56,7 @@ func main() {
 		log.Fatalf("Analysis failed: %v", err)
 	}
 
-	if err := writeReport(issues, *format, *reportOutputPath); err != nil {
+	if err := writeReport(issues, *format, *reportOutputPath, prof); err != nil {
 		log.Fatalf("Unable to write report: %v", err)
 	}
 }
@@ -98,7 +98,7 @@ func analyze(prof *profile.VMProfile, path, disassemblyPath, mode string) ([]*an
 }
 
 // writeReport outputs the results in the specified format.
-func writeReport(issues []*analyser.Issue, format, outputPath string) error {
+func writeReport(issues []*analyser.Issue, format, outputPath string, prof *profile.VMProfile) error {
 	var output *os.File
 	if outputPath == "" {
 		output = os.Stdout
@@ -119,7 +119,7 @@ func writeReport(issues []*analyser.Issue, format, outputPath string) error {
 	var rendererInstance renderer.Renderer
 	switch format {
 	case "text":
-		rendererInstance = renderer.NewTextRenderer()
+		rendererInstance = renderer.NewTextRenderer(prof)
 	case "json":
 		rendererInstance = renderer.NewJSONRenderer()
 	default:

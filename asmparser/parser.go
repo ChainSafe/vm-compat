@@ -23,6 +23,7 @@ type Instruction interface {
 	Funct() string         // Funct returns the function code (for R-Type instructions).
 	Mnemonic() string      // Mnemonic returns the assembly mnemonic representation.
 	IsSyscall() bool       // IsSyscall returns true if the instruction is a syscall.
+	Line() int             // Line number of the instruction
 }
 
 // Segment defines an interface representing a block of assembly instructions.

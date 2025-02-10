@@ -4,31 +4,27 @@ import (
 	"syscall"
 )
 
-var ptr = syscall.SYS_OPENAT
-
-func RawSyscall(trap uintptr) {
-	syscall.RawSyscall6(trap, 0, 0, 0, 0, 0, 0)
-}
-
-func Syscall2(t uintptr) {
-	RawSyscall(t)
-}
-
 func main() {
-	var trap uintptr = syscall.SYS_READ
-	if true {
-		trap = getTrap()
-	}
-	Syscall2(trap)
+	lvl31(0)
+	lvl32(0)
 }
 
-func getTrap() uintptr {
-	if true {
-		return getTrap2()
-	} else {
-		return uintptr(ptr)
-	}
+func lvl31(v0 int) {
+	lvl21(v0)
+	lvl22(v0)
 }
-func getTrap2() uintptr {
-	return syscall.SYS_WRITE
+func lvl32(v0 int) {
+	lvl21(v0)
+	lvl22(v0)
+}
+func lvl21(v0 int) {
+	lvl1(v0)
+}
+
+func lvl22(v0 int) {
+	lvl1(v0)
+}
+
+func lvl1(v0 int) {
+	syscall.RawSyscall6(1, 0, 0, 0, 0, 0, 0)
 }

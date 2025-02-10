@@ -3,8 +3,11 @@ package opcode
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/ChainSafe/vm-compat/common"
 
 	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -33,13 +36,17 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 	if err != nil {
 		return nil, err
 	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
 	issues := make([]*analyser.Issue, 0)
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
 				issues = append(issues, &analyser.Issue{
-					File:   path,
-					Source: instruction.Address(), // TODO: add proper source
+					Severity: analyser.IssueSeverityCritical,
+					Sources:  common.TraceAsmCaller(absPath, instruction, segment, callGraph, make([]*analyser.IssueSource, 0), 0),
 					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
 						instruction.OpcodeHex(), instruction.Funct()),
 				})

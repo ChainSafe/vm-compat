@@ -3,13 +3,18 @@ package syscall
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
+
+	"github.com/ChainSafe/vm-compat/common"
 
 	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/asmparser/mips"
 	"github.com/ChainSafe/vm-compat/profile"
 )
+
+var syscallAPISForAsm = append(syscallAPIs, "runtime/internal/syscall.Syscall6")
 
 // asmSyscallAnalyser analyzes system calls in assembly files.
 type asmSyscallAnalyser struct {
@@ -43,7 +48,12 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 
 	issues := make([]*analyser.Issue, 0)
 
-	// Iterate through segments and check for syscalls.
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Iterate through segments and check for syscall.
 	for _, segment := range callGraph.Segments() {
 		segmentLabel := segment.Label()
 		for _, instruction := range segment.Instructions() {
@@ -51,7 +61,7 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 				continue
 			}
 			// Ignore indirect syscall calling from syscall apis
-			if slices.Contains(syscallAPIs, segmentLabel) {
+			if slices.Contains(syscallAPISForAsm, segmentLabel) {
 				continue
 			}
 			syscallNum, err := segment.RetrieveSyscallNum(instruction)
@@ -64,15 +74,17 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 				continue
 			}
 
+			severity := analyser.IssueSeverityCritical
 			message := fmt.Sprintf("Incompatible Syscall Detected: %d", syscallNum)
 			if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
 				message = fmt.Sprintf("NOOP Syscall Detected: %d", syscallNum)
+				severity = analyser.IssueSeverityWarning
 			}
 
 			issues = append(issues, &analyser.Issue{
-				File:    path,
-				Source:  instruction.Address(),
-				Message: message,
+				Severity: severity,
+				Message:  message,
+				Sources:  common.TraceAsmCaller(absPath, instruction, segment, callGraph, make([]*analyser.IssueSource, 0), 0),
 			})
 		}
 	}
