@@ -6,11 +6,10 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/ChainSafe/vm-compat/common"
-
 	"github.com/ChainSafe/vm-compat/analyser"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/asmparser/mips"
+	"github.com/ChainSafe/vm-compat/common"
 	"github.com/ChainSafe/vm-compat/profile"
 )
 
