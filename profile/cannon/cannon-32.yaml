@@ -1,6 +1,8 @@
 vm: Cannon
 goos: linux
 goarch: mips32
+ignored_functions:
+
 allowed_opcodes:
   - opcode: '0x2'
     funct: []
