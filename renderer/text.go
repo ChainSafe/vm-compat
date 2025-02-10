@@ -4,19 +4,23 @@ package renderer
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/profile"
 )
 
 // TextRenderer formats the analysis report in a structured text format.
-type TextRenderer struct{}
+type TextRenderer struct {
+	profile *profile.VMProfile
+}
 
 // NewTextRenderer creates a new instance of TextRenderer.
-func NewTextRenderer() Renderer {
-	return &TextRenderer{}
+func NewTextRenderer(profile *profile.VMProfile) Renderer {
+	return &TextRenderer{profile: profile}
 }
 
 // Render formats and writes the analysis report to the command line.
@@ -35,8 +39,12 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	totalIssues := len(groupedIssues)
 
 	// Sort issue messages for consistent output
+	numOfCriticalIssues := 0
 	var sortedMessages = make([]string, 0, len(groupedIssues))
-	for msg := range groupedIssues {
+	for msg, val := range groupedIssues {
+		if val[0].Severity == analyser.IssueSeverityCritical {
+			numOfCriticalIssues++
+		}
 		sortedMessages = append(sortedMessages, msg)
 	}
 	sort.Strings(sortedMessages)
@@ -48,14 +56,16 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	report.WriteString("==============================\n")
 	report.WriteString("🔍 Go Compatibility Analysis Report\n")
 	report.WriteString("==============================\n\n")
-	report.WriteString(fmt.Sprintf("📄 Analyzed File: %s\n", issues[0].File))
+	report.WriteString(fmt.Sprintf("🖥 VM Name: %s\n", r.profile.VMName))
+	report.WriteString(fmt.Sprintf("⚙️ GOOS: %s\n", r.profile.GOOS))
+	report.WriteString(fmt.Sprintf("🛠 GOARCH: %s\n", r.profile.GOARCH))
 	report.WriteString(fmt.Sprintf("📅 Timestamp: %s\n", timestamp))
 	report.WriteString("🔢 Analyzer Version: 1.0.0\n\n")
 	report.WriteString("------------------------------\n")
 	report.WriteString("🚨 Summary of Issues\n")
 	report.WriteString("------------------------------\n")
-	report.WriteString(fmt.Sprintf("❗ Critical Issues: %d\n", totalIssues))
-	report.WriteString("⚠️ Warnings: 0\n")
+	report.WriteString(fmt.Sprintf(" ❗ Critical Issues: %d\n", numOfCriticalIssues))
+	report.WriteString(fmt.Sprintf("⚠️ Warnings: %d\n", totalIssues-numOfCriticalIssues))
 	report.WriteString(fmt.Sprintf("ℹ️ Total Issues: %d\n\n", totalIssues))
 	report.WriteString("------------------------------\n")
 	report.WriteString("📌 Detailed Issues\n")
@@ -64,14 +74,23 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	// Issues Section
 	issueCounter := 1
 	for _, msg := range sortedMessages {
-		report.WriteString(fmt.Sprintf("%d. [CRITICAL] %s\n", issueCounter, msg))
-		report.WriteString("   - Affected Segments:\n")
+		groupedIssue := groupedIssues[msg]
+		report.WriteString(fmt.Sprintf("%d. [%s] %s\n", issueCounter, groupedIssue[0].Severity, msg))
+		report.WriteString("   - Sources:")
 
-		for _, issue := range groupedIssues[msg] {
-			report.WriteString(fmt.Sprintf("     - Source: %s \n", issue.Source))
+		count := 0
+		for _, issue := range groupedIssue {
+			for _, source := range issue.Sources {
+				count++
+				report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, source, "", 5)))
+				if count == 2 {
+					break
+				}
+			}
+			if count == 2 {
+				break
+			}
 		}
-
-		report.WriteString("   - Recommendation: Ensure affected opcodes are supported in the target environment.\n\n")
 		issueCounter++
 	}
 
@@ -79,14 +98,34 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	report.WriteString("------------------------------\n")
 	report.WriteString("✅ Recommendations\n")
 	report.WriteString("------------------------------\n")
-	report.WriteString("- Review critical issues and replace deprecated or unsupported opcodes.\n")
 	report.WriteString("- Verify compatibility with the target runtime.\n")
-	report.WriteString("- Ensure proper opcode translation for execution environments.\n\n")
 	report.WriteString("🔚 End of Report\n")
 
 	// Print the complete report at once
 	_, err := output.Write([]byte(report.String()))
 	return err
+}
+
+func buildCallStack(output io.Writer, source *analyser.IssueSource, str string, depth int) string {
+	var fileInfo string
+	if output == os.Stdout {
+		fileInfo = fmt.Sprintf(
+			" \033[94m\033]8;;file://%s:%d\033\\%s:%d\033]8;;\033\\\033[0m",
+			source.AbsPath, source.Line, source.File, source.Line,
+		)
+	} else {
+		fileInfo = fmt.Sprintf("%s:%d (%s)", source.File, source.Line, source.AbsPath)
+	}
+
+	str = strings.Join(
+		[]string{
+			str,
+			fmt.Sprintf("-> %s : (%s)", fileInfo, source.Function)},
+		fmt.Sprintf("\n%s", strings.Repeat(" ", depth)))
+	if source.CallStack != nil {
+		return buildCallStack(output, source.CallStack, str, depth+1)
+	}
+	return str
 }
 
 // Format returns the format type.

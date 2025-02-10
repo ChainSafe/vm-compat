@@ -53,15 +53,18 @@ func (p *parserImpl) Parse(path string) (asmparser.CallGraph, error) {
 	var currSegment *segment
 	graph := newCallGraph()
 	scanner := bufio.NewScanner(codefile)
+	lineNum := 0
 	for scanner.Scan() {
 		line := scanner.Text()
 		instr, err := p.parseLine(line)
 		if err != nil {
 			return nil, fmt.Errorf("error parsing line: %w", err)
 		}
+		lineNum++
 		if instr == nil { // Ignore comments and empty lines
 			continue
 		}
+		instr.line = lineNum
 		if instr.isSegmentStart() {
 			currSegment = newSegment(instr.address, instr.label)
 			graph.addSegment(currSegment)
@@ -184,6 +187,7 @@ type instruction struct {
 	label        string // Used if this instruction marks the start of a segment
 	opcode       uint32
 	operands     []int64 // RS, RT, RD, Shamt, FunctionCode, Immediate, TargetAddress
+	line         int
 }
 
 // isSegmentStart checks if the instruction marks the beginning of a segment.
@@ -226,6 +230,10 @@ func (i *instruction) isJump() bool {
 // jumpTarget returns the jump target address of a jump instruction.
 func (i *instruction) jumpTarget() int64 {
 	return i.operands[0]
+}
+
+func (i *instruction) Line() int {
+	return i.line
 }
 
 // segment represents a block of assembly instructions implementing the asmparser.Segment interface.
@@ -276,6 +284,7 @@ func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
 	indexOfInstr := offset / uint64(4)
 
 	// every value of i is a uint64 which is always >= 0, hence check against max uint64
+	// TODO: if some instruction is skipped this may fail to target the correct one
 	for i := indexOfInstr - 1; i < math.MaxUint64; i-- {
 		currInstr := s.instructions[i]
 		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {

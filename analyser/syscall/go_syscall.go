@@ -2,7 +2,9 @@ package syscall
 
 import (
 	"fmt"
+	"go/token"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -22,7 +24,6 @@ var syscallAPIs = []string{
 	"syscall.rawSyscallNoError",
 	"syscall.rawVforkSyscall",
 	"syscall.runtime_doAllThreadsSyscall",
-	"runtime/internal/syscall.Syscall6",
 }
 
 // goSyscallAnalyser analyzes system calls in Go binaries.
@@ -83,13 +84,13 @@ func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 	cg.DeleteSyntheticNodes()
 
 	// Analyze call graph for syscalls.
-	syscalls := make([]int, 0)
+	fset := initial[0].Fset
+	syscalls := make([]syscallSource, 0)
 	err = callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
 		callee := edge.Callee.Func
 		if callee != nil && callee.Pkg != nil && callee.Pkg.Pkg != nil {
-			packagePath := callee.Pkg.Pkg.Path()
-			if packagePath == "syscall" && callee.Name() == "RawSyscall6" {
-				calls := traceSyscalls(nil, edge)
+			if slices.Contains(syscallAPIs, callee.String()) {
+				calls := traceSyscalls(edge.Site.Common().Args[0], edge, fset)
 				syscalls = append(syscalls, calls...)
 			}
 		}
@@ -101,50 +102,52 @@ func (a *goSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 
 	// Check against allowed syscalls.
 	issues := []*analyser.Issue{}
-	for _, syscallNum := range syscalls {
-		// Categorize syscall
-		if slices.Contains(a.profile.AllowedSycalls, syscallNum) {
+	for i := range syscalls {
+		syscll := syscalls[i]
+		if slices.Contains(a.profile.AllowedSycalls, syscll.num) {
 			continue
 		}
 
-		message := fmt.Sprintf("Incompatible Syscall Detected: 0x%x", syscallNum)
-		if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
-			message = fmt.Sprintf("NOOP Syscall Detected: 0x%x", syscallNum)
+		severity := analyser.IssueSeverityCritical
+		message := fmt.Sprintf("Incompatible Syscall Detected: %d", syscll.num)
+		if slices.Contains(a.profile.NOOPSyscalls, syscll.num) {
+			severity = analyser.IssueSeverityWarning
+			message = fmt.Sprintf("NOOP Syscall Detected: %d", syscll.num)
 		}
 
 		issues = append(issues, &analyser.Issue{
-			File:    path,
-			Message: message,
+			Severity: severity,
+			Sources:  syscll.source,
+			Message:  message,
 		})
 	}
 
 	return issues, nil
 }
 
-func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
-	if edge != nil {
-		args := edge.Site.Common().Args
-		if len(args) > 0 {
-			value = args[0]
-		}
-	}
-	result := make([]int, 0)
+type syscallSource struct {
+	num    int
+	source []*analyser.IssueSource
+}
+
+func traceSyscalls(value ssa.Value, edge *callgraph.Edge, fset *token.FileSet) []syscallSource {
+	result := make([]syscallSource, 0)
 	switch v := value.(type) {
 	case *ssa.Const:
 		valInt, err := strconv.Atoi(v.Value.String())
 		if err == nil {
-			return []int{valInt}
+			return []syscallSource{{num: valInt, source: traceCaller(edge, make([]*analyser.IssueSource, 0), 0, fset)}}
 		}
 	case *ssa.Global:
-		result = append(result, traceInit(v, v.Pkg.Members)...)
+		result = append(result, traceInit(v, v.Pkg.Members, edge, fset)...)
 	case *ssa.Parameter:
 		prev := edge.Caller.In
 		for _, p := range prev {
-			result = append(result, traceSyscalls(nil, p)...)
+			result = append(result, traceSyscalls(p.Site.Common().Args[0], p, fset)...)
 		}
 	case *ssa.Phi:
 		for _, val := range v.Edges {
-			result = append(result, traceSyscalls(val, nil)...)
+			result = append(result, traceSyscalls(val, edge, fset)...)
 		}
 	case *ssa.Call:
 		// Trace nested calls
@@ -154,15 +157,28 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
 				// Look for return instructions
 				if ret, ok := instr.(*ssa.Return); ok {
 					for _, val := range ret.Results {
-						result = append(result, traceSyscalls(val, nil)...)
+						result = append(result, traceSyscalls(val, edge, fset)...)
 					}
 				}
 			}
 		}
 	case *ssa.UnOp:
-		result = append(result, traceSyscalls(v.X, nil)...)
+		result = append(result, traceSyscalls(v.X, edge, fset)...)
 	case *ssa.Convert:
-		result = append(result, traceSyscalls(v.X, nil)...)
+		result = append(result, traceSyscalls(v.X, edge, fset)...)
+	case *ssa.FieldAddr:
+		// check all instructions to get the latest value store for this field address
+		var val ssa.Value
+		for _, instr := range v.Block().Instrs {
+			if st, ok := instr.(*ssa.Store); ok {
+				if fe, ok := st.Addr.(*ssa.FieldAddr); ok {
+					if fe.X == v.X {
+						val = st.Val
+					}
+				}
+			}
+		}
+		result = append(result, traceSyscalls(val, edge, fset)...)
 	default:
 		fmt.Printf("Unhandled value type: %T\n", v)
 		panic("not handled")
@@ -170,7 +186,7 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge) []int {
 	return result
 }
 
-func traceInit(v *ssa.Global, members map[string]ssa.Member) (result []int) {
+func traceInit(v *ssa.Global, members map[string]ssa.Member, edge *callgraph.Edge, fset *token.FileSet) (result []syscallSource) {
 	// Iterate through instructions in the Init function
 	// Iterate through all functions in the package to find the initialization
 	for _, member := range members {
@@ -180,7 +196,7 @@ func traceInit(v *ssa.Global, members map[string]ssa.Member) (result []int) {
 					// Look for Store instructions
 					if store, ok := instr.(*ssa.Store); ok {
 						if store.Addr == v {
-							result = append(result, traceSyscalls(store.Val, nil)...)
+							result = append(result, traceSyscalls(store.Val, edge, fset)...)
 						}
 					}
 				}
@@ -223,4 +239,103 @@ func initFuncs(pkgs []*ssa.Package) []*ssa.Function {
 		}
 	}
 	return inits
+}
+
+// traceCaller correctly tracks function calls in the execution stack.
+func traceCaller(edge *callgraph.Edge, paths []*analyser.IssueSource, depth int, fset *token.FileSet) []*analyser.IssueSource {
+	if edge == nil || edge.Caller == nil {
+		return paths // Prevent nil pointer dereference
+	}
+
+	// Create a new IssueSource entry for this function call
+	source := &analyser.IssueSource{
+		File:     "undefined",
+		Line:     0,
+		AbsPath:  "undefined",
+		Function: edge.Caller.Func.String(),
+	}
+
+	// Get file name, absolute path, and line number safely
+	if edge.Site != nil {
+		pos := edge.Site.Pos()
+		position := fset.Position(pos)
+		source.File = filepath.Base(position.Filename)
+		source.Line = position.Line
+		if position.Filename != "" {
+			source.AbsPath = filepath.Clean(position.Filename)
+		}
+	}
+
+	// If this is the first function call in the trace, initialize the stack
+	newPaths := make([]*analyser.IssueSource, 0)
+	if len(paths) == 0 {
+		newPaths = []*analyser.IssueSource{source}
+	} else {
+		if len(paths) > 1 {
+			panic("multiple paths not possible")
+		}
+		newPath := paths[0].Copy()
+		newPath.AddCallStack(source)
+		newPaths = append(newPaths, newPath)
+	}
+
+	// Stop recursion at desired depth to prevent infinite loops
+	if depth >= 1 || len(edge.Caller.In) == 0 {
+		return newPaths
+	}
+
+	// Recurse for previous function calls (callers)
+	result := make([]*analyser.IssueSource, 0)
+	for _, e := range edge.Caller.In {
+		result = append(result, traceCaller(e, newPaths, depth+1, fset)...)
+	}
+
+	return result
+}
+
+//nolint:unused
+func traceCallerToRoot(edge *callgraph.Edge, paths []*analyser.IssueSource, depth int, fset *token.FileSet) []*analyser.IssueSource {
+	if edge == nil || edge.Caller == nil {
+		return paths // Prevent nil pointer dereference
+	}
+	// Create a new IssueSource entry for this function call
+	source := &analyser.IssueSource{
+		File:     "undefined",
+		Line:     0,
+		AbsPath:  "undefined",
+		Function: edge.Caller.Func.String(),
+	}
+	// Get file name, absolute path, and line number safely
+	if edge.Site != nil {
+		pos := edge.Site.Pos()
+		position := fset.Position(pos)
+		source.File = filepath.Base(position.Filename)
+		source.Line = position.Line
+		if position.Filename != "" {
+			source.AbsPath = filepath.Clean(position.Filename)
+		}
+	}
+
+	if len(edge.Caller.In) == 0 && (source.Function == "command-line-arguments.main" ||
+		source.Function == "command-line-arguments.init") {
+		return []*analyser.IssueSource{source}
+	}
+	if len(edge.Caller.In) == 0 || depth == 10 {
+		return nil
+	}
+	results := make([]*analyser.IssueSource, 0)
+	for _, e := range edge.Caller.In {
+		res := traceCaller(e, paths, depth+1, fset)
+		if len(res) > 0 {
+			results = append(results, res...)
+			break
+		}
+	}
+	finalResults := make([]*analyser.IssueSource, 0)
+	for _, result := range results {
+		src := source.Copy()
+		src.CallStack = result
+		finalResults = append(finalResults, src)
+	}
+	return finalResults
 }
