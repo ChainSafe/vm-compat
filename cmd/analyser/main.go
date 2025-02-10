@@ -18,7 +18,7 @@ import (
 
 var (
 	vmProfile         = flag.String("vm-profile", "./profile/cannon/cannon-64.yaml", "vm profile config")
-	analyzer          = flag.String("analyzer", "syscall", "analyzer to run. Options: opcode, syscall")
+	analyzer          = flag.String("analyzer", "", "analyzer to run. Options: opcode, syscall")
 	disassemblyOutput = flag.String("disassembly-output-path", "", "output file path for opcode assembly code.")
 	format            = flag.String("format", "text", "format of the output. Options: json, text")
 	reportOutputPath  = flag.String("report-output-path", "", "output file path for report. Default: stdout")
@@ -84,7 +84,7 @@ func analyze(prof *profile.VMProfile, path, disassemblyPath, mode string) ([]*an
 	if mode == "syscall" {
 		return analyzeSyscalls(prof, path, disassemblyPath)
 	}
-
+	// by default analyze both
 	opIssues, err := opcode.NewAnalyser(prof).Analyze(disassemblyPath)
 	if err != nil {
 		return nil, err
