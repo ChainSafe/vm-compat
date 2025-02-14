@@ -44,6 +44,26 @@ Even if `condition2` is never met during runtime, VM Compat will still detect `d
 This ensures that all possible execution paths are analyzed,
 making the tool effective in identifying compatibility concerns proactively.
 
+## Prerequisites
+
+VM Compat requires `llvm-objdump` to be installed for disassembly. Install it using the following commands:
+
+### Linux (Ubuntu/Debian)
+```sh
+sudo apt update && sudo apt install llvm
+```
+
+### macOS
+```sh
+brew install llvm
+```
+
+Ensure that `llvm-objdump` is accessible in your system's `PATH`. If necessary, update the `PATH` variable:
+
+```sh
+export PATH="$(brew --prefix llvm)/bin:$PATH"
+```
+
 ## Installation
 
 To install VM Compat, clone the repository and build the binary:
@@ -54,25 +74,70 @@ cd vm-compat
 make analyser
 ```
 
-## CLI Flags
-
-VM Compat provides several command-line flags to control its behavior:
-
-| Flag                       | Description                                                            | Default                           |
-| -------------------------- | ---------------------------------------------------------------------- |-----------------------------------|
-| `-vm-profile`              | Path to the VM profile config file.                                    | `./profile/cannon/cannon-64.yaml` |
-| `-analyzer`                | Type of analysis to perform. Options: `opcode`, `syscall`              | analyzes both by default          |
-| `-disassembly-output-path` | File path to store the disassembled opcode assembly code.              | None                              |
-| `-format`                  | Output format. Options: `json`, `text`                                 | `text`                            |
-| `-report-output-path`      | Path to store the analysis report. If not provided, outputs to stdout. | Stdout                            |
-
 ## Usage
 
-Run VM Compat with the Go source file you want to analyze:
+### General CLI Usage
 
 ```sh
-./bin/analyser -analyzer=opcode -format=text -disassembly-output-path=sample.asm -vm-profile=./profile/cannon/cannon-64.yaml ./examples/sample.go
+./bin/analyzer [global options] command [command options]
 ```
+
+### Commands
+
+- `analyze`: Checks the program compatibility against the VM profile.
+- `trace`: Generates a stack trace for a given function.
+- `help, h`: Shows a list of commands or help for one command.
+
+### Command-Specific Usage
+
+#### Analyze Command
+
+```sh
+./bin/analyzer analyze [command options]
+```
+
+#### Analyze Options
+
+| Option                          | Description                                                        | Default |
+|---------------------------------|--------------------------------------------------------------------|---------|
+| `--vm-profile value`            | Path to the VM profile config file (required).                    | None    |
+| `--analysis-type value`         | Type of analysis to perform. Options: `opcode`, `syscall`.        | All     |
+| `--disassembly-output-path`     | File path to store the disassembled assembly code.                | None    |
+| `--format value`                | Output format. Options: `json`, `text`.                           | `text`  |
+| `--report-output-path value`    | Output file path for report. Default: stdout.                     | None    |
+| `--with-trace`                  | Enable full stack trace output.                                   | `false` |
+| `--help, -h`                    | Show help.                                                        | None    |
+
+#### Trace Command
+
+```sh
+./bin/analyzer trace [command options]
+```
+
+#### Trace Options
+
+| Option                | Description                                                                            | Default |
+|-----------------------|----------------------------------------------------------------------------------------|---------|
+| `--vm-profile value`  | Path to the VM profile config file (required).                                         | None    |
+| `--function value`    | Name of the function to trace. Include package name (e.g., `syscall.read`). (required) | None    |
+| `--help, -h`         | Show help.                                                                             | None    |
+
+## Example Usage
+
+### Running an Analysis
+
+```sh
+./bin/analyzer  analyze  --with-trace=true --format=text --analysis-type=syscall --disassembly-output-path=sample.asm --vm-profile ./profile/cannon/cannon-64.yaml ./examples/sample.go
+
+```
+
+### Running a Trace
+
+```sh
+./bin/analyzer trace --vm-profile=./profile/cannon/cannon-64.yaml --function=syscall.read
+
+````
+
 To create vm specific profile, follow [this](./profile/readme.md)
 
 ## Example Output
@@ -102,6 +167,5 @@ To create vm specific profile, follow [this](./profile/readme.md)
 1. [CRITICAL] Incompatible Syscall Detected: 5006
    - Sources:
      ->  zsyscall_linux_mips64.go:1677 : (syscall.lstat)
-      ->  syscall_linux_mips64x.go:154 : (syscall.Lstat)
 ...
 ```
