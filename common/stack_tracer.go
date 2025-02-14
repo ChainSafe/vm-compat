@@ -1,55 +1,60 @@
 package common
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 
-	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
 )
 
 // TraceAsmCaller correctly tracks function calls in the execution stack.
 func TraceAsmCaller(
 	filePath string,
-	instruction asmparser.Instruction,
-	segment asmparser.Segment,
 	graph asmparser.CallGraph,
-	paths []*analyser.IssueSource,
-	depth int) []*analyser.IssueSource {
-	if instruction == nil || segment == nil {
-		return paths // Prevent nil pointer dereference
-	}
-
-	// Create a new IssueSource entry for this function call
-	source := &analyser.IssueSource{
-		File:     filepath.Base(filePath),
-		Line:     instruction.Line(),
-		AbsPath:  filePath,
-		Function: segment.Label(),
-	}
-	// If this is the first function call in the trace, initialize the stack
-	newPaths := make([]*analyser.IssueSource, 0)
-	if len(paths) == 0 {
-		newPaths = []*analyser.IssueSource{source}
-	} else {
-		if len(paths) > 1 {
-			panic("multiple paths not possible")
+	function string,
+) (*analyzer.IssueSource, error) {
+	var segment asmparser.Segment
+	for _, seg := range graph.Segments() {
+		if seg.Label() == function {
+			segment = seg
+			break
 		}
-		newPath := paths[0].Copy()
-		newPath.AddCallStack(source)
-		newPaths = append(newPaths, newPath)
 	}
-
-	parents := graph.ParentsOf(segment)
-	// Stop recursion at desired depth to prevent infinite loops
-	if depth >= 1 || len(parents) == 0 {
-		return newPaths
+	if segment == nil {
+		return nil, fmt.Errorf("could not find %s in %s", function, filePath)
 	}
+	seen := make(map[asmparser.Segment]bool)
+	var visit func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.IssueSource
 
-	// Recurse for previous function calls (callers)
-	result := make([]*analyser.IssueSource, 0)
-	for _, seg := range parents {
-		result = append(result, TraceAsmCaller(filePath, seg.Instructions()[0], seg, graph, newPaths, depth+1)...)
+	visit = func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.IssueSource {
+		if seen[segment] {
+			return nil
+		}
+		seen[segment] = true
+
+		source := &analyzer.IssueSource{
+			File:     filepath.Base(filePath),
+			Line:     segment.Instructions()[0].Line() - 1, // function start line
+			AbsPath:  filePath,
+			Function: segment.Label(),
+		}
+		if strings.Contains(source.Function, ".init") { // where to end
+			return source
+		}
+		for _, seg := range graph.ParentsOf(segment) {
+			ch := visit(graph, seg)
+			if ch != nil {
+				source.AddCallStack(ch)
+				return source
+			}
+		}
+		return nil
 	}
-
-	return result
+	src := visit(graph, segment)
+	if src == nil {
+		return nil, fmt.Errorf("no trace found to root for the given function")
+	}
+	return src, nil
 }

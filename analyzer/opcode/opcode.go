@@ -1,4 +1,4 @@
-// Package opcode implements analyser.Analyzer for detecting incompatible opcodes.
+// Package opcode implements analyzer.Analyzer for detecting incompatible opcodes.
 package opcode
 
 import (
@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/asmparser/mips"
 	"github.com/ChainSafe/vm-compat/common"
@@ -18,11 +18,11 @@ type opcode struct {
 	profile *profile.VMProfile
 }
 
-func NewAnalyser(profile *profile.VMProfile) analyser.Analyzer {
+func NewAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 	return &opcode{profile: profile}
 }
 
-func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
+func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
 	var err error
 	var callGraph asmparser.CallGraph
 
@@ -39,13 +39,20 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 	if err != nil {
 		return nil, err
 	}
-	issues := make([]*analyser.Issue, 0)
+	issues := make([]*analyzer.Issue, 0)
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
-				issues = append(issues, &analyser.Issue{
-					Severity: analyser.IssueSeverityCritical,
-					Sources:  common.TraceAsmCaller(absPath, instruction, segment, callGraph, make([]*analyser.IssueSource, 0), 0),
+				source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label())
+				if err != nil { // non-reachable portion ignored
+					continue
+				}
+				if !withTrace {
+					source.CallStack = nil
+				}
+				issues = append(issues, &analyzer.Issue{
+					Severity: analyzer.IssueSeverityCritical,
+					Sources:  source,
 					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
 						instruction.OpcodeHex(), instruction.Funct()),
 				})
@@ -53,6 +60,11 @@ func (op *opcode) Analyze(path string) ([]*analyser.Issue, error) {
 		}
 	}
 	return issues, nil
+}
+
+// TraceStack generates callstack for a function to debug
+func (op *opcode) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+	return nil, fmt.Errorf("stack trace is not supported for assembly code")
 }
 
 func (op *opcode) isAllowedOpcode(opcode, funct string) bool {

@@ -1,8 +1,8 @@
 GOLANGCI := $(GOPATH)/bin/golangci-lint
 
-.PHONY: analyser
-analyser:
-	go build -o ./bin/analyser ./cmd/analyser/main.go
+.PHONY: analyzer
+analyzer:
+	go build -o ./bin/analyzer ./main.go
 
 .PHONY: get
 get:

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/profile"
 )
 
@@ -24,7 +24,7 @@ func NewTextRenderer(profile *profile.VMProfile) Renderer {
 }
 
 // Render formats and writes the analysis report to the command line.
-func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error {
+func (r *TextRenderer) Render(issues []*analyzer.Issue, output io.Writer) error {
 	if len(issues) == 0 {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	timestamp := time.Now().Format("2006-01-02 15:04:05 UTC")
 
 	// Group issues by message
-	groupedIssues := make(map[string][]*analyser.Issue)
+	groupedIssues := make(map[string][]*analyzer.Issue)
 	for _, issue := range issues {
 		groupedIssues[issue.Message] = append(groupedIssues[issue.Message], issue)
 	}
@@ -42,7 +42,7 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	numOfCriticalIssues := 0
 	var sortedMessages = make([]string, 0, len(groupedIssues))
 	for msg, val := range groupedIssues {
-		if val[0].Severity == analyser.IssueSeverityCritical {
+		if val[0].Severity == analyzer.IssueSeverityCritical {
 			numOfCriticalIssues++
 		}
 		sortedMessages = append(sortedMessages, msg)
@@ -78,18 +78,8 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 		report.WriteString(fmt.Sprintf("%d. [%s] %s\n", issueCounter, groupedIssue[0].Severity, msg))
 		report.WriteString("   - Sources:")
 
-		count := 0
 		for _, issue := range groupedIssue {
-			for _, source := range issue.Sources {
-				count++
-				report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, source, "", 5)))
-				if count == 2 {
-					break
-				}
-			}
-			if count == 2 {
-				break
-			}
+			report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, issue.Sources, "")))
 		}
 		issueCounter++
 	}
@@ -106,7 +96,7 @@ func (r *TextRenderer) Render(issues []*analyser.Issue, output io.Writer) error 
 	return err
 }
 
-func buildCallStack(output io.Writer, source *analyser.IssueSource, str string, depth int) string {
+func buildCallStack(output io.Writer, source *analyzer.IssueSource, str string) string {
 	var fileInfo string
 	if output == os.Stdout {
 		fileInfo = fmt.Sprintf(
@@ -121,9 +111,9 @@ func buildCallStack(output io.Writer, source *analyser.IssueSource, str string, 
 		[]string{
 			str,
 			fmt.Sprintf("-> %s : (%s)", fileInfo, source.Function)},
-		fmt.Sprintf("\n%s", strings.Repeat(" ", depth)))
+		"\n       ")
 	if source.CallStack != nil {
-		return buildCallStack(output, source.CallStack, str, depth+1)
+		return buildCallStack(output, source.CallStack, str)
 	}
 	return str
 }

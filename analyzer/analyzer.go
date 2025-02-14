@@ -1,11 +1,14 @@
-// Package analyser provides an interface for analyzing source code for compatibility issues.
-package analyser
+// Package analyzer provides an interface for analyzing source code for compatibility issues.
+package analyzer
 
 // Analyzer represents the interface for the analyzer.
 type Analyzer interface {
 	// Analyze analyzes the provided source code and returns any issues found.
 	// TODO: better to update the code to take a reader interface instead of path
-	Analyze(path string) ([]*Issue, error)
+	Analyze(path string, withTrace bool) ([]*Issue, error)
+
+	// TraceStack generates callstack for a function to debug
+	TraceStack(path string, function string) (*IssueSource, error)
 }
 
 // IssueSeverity represents the severity level of an issue.
@@ -18,9 +21,9 @@ const (
 
 // Issue represents a single issue found by the analyzer.
 type Issue struct {
-	Sources  []*IssueSource `json:"sources"`
-	Message  string         `json:"message"` // A description of the issue.
-	Severity IssueSeverity  `json:"severity"`
+	Sources  *IssueSource  `json:"sources"`
+	Message  string        `json:"message"` // A description of the issue.
+	Severity IssueSeverity `json:"severity"`
 }
 
 // IssueSource represents a location in the code where the issue originates.
