@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/ChainSafe/vm-compat/analyser"
+	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/asmparser/mips"
 	"github.com/ChainSafe/vm-compat/common"
@@ -21,14 +21,14 @@ type asmSyscallAnalyser struct {
 }
 
 // NewAssemblySyscallAnalyser initializes an analyser for assembly syscalls.
-func NewAssemblySyscallAnalyser(profile *profile.VMProfile) analyser.Analyzer {
+func NewAssemblySyscallAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 	return &asmSyscallAnalyser{profile: profile}
 }
 
 // Analyze scans an assembly file for syscalls and detects compatibility issues.
 //
 //nolint:cyclop
-func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
+func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
 	var (
 		err       error
 		callGraph asmparser.CallGraph
@@ -45,7 +45,7 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 		return nil, fmt.Errorf("error parsing assembly file: %w", err)
 	}
 
-	issues := make([]*analyser.Issue, 0)
+	issues := make([]*analyzer.Issue, 0)
 
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -72,20 +72,33 @@ func (a *asmSyscallAnalyser) Analyze(path string) ([]*analyser.Issue, error) {
 			if slices.Contains(a.profile.AllowedSycalls, syscallNum) {
 				continue
 			}
-
-			severity := analyser.IssueSeverityCritical
-			message := fmt.Sprintf("Incompatible Syscall Detected: %d", syscallNum)
-			if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
-				message = fmt.Sprintf("NOOP Syscall Detected: %d", syscallNum)
-				severity = analyser.IssueSeverityWarning
+			// Better to develop a new algo to check all segments at once like go_syscall
+			source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label())
+			if err != nil { // non-reachable portion ignored
+				continue
+			}
+			if !withTrace {
+				source.CallStack = nil
 			}
 
-			issues = append(issues, &analyser.Issue{
+			severity := analyzer.IssueSeverityCritical
+			message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscallNum)
+			if slices.Contains(a.profile.NOOPSyscalls, syscallNum) {
+				message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscallNum)
+				severity = analyzer.IssueSeverityWarning
+			}
+
+			issues = append(issues, &analyzer.Issue{
 				Severity: severity,
 				Message:  message,
-				Sources:  common.TraceAsmCaller(absPath, instruction, segment, callGraph, make([]*analyser.IssueSource, 0), 0),
+				Sources:  source,
 			})
 		}
 	}
 	return issues, nil
+}
+
+// TraceStack generates callstack for a function to debug
+func (a *asmSyscallAnalyser) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+	return nil, fmt.Errorf("stack trace is not supported for assembly code")
 }
