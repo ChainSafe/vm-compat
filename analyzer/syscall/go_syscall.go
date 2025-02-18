@@ -11,6 +11,7 @@ import (
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/common"
+	"github.com/ChainSafe/vm-compat/common/lifo"
 	"github.com/ChainSafe/vm-compat/profile"
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/callgraph/rta"
@@ -21,9 +22,9 @@ import (
 
 var syscallAPIs = []string{
 	"syscall.RawSyscall6",
-	"syscall.rawSyscallNoError",
-	"syscall.rawVforkSyscall",
-	"syscall.runtime_doAllThreadsSyscall",
+	//"syscall.rawSyscallNoError",
+	//"syscall.rawVforkSyscall",
+	//"syscall.runtime_doAllThreadsSyscall",
 }
 
 // goSyscallAnalyser analyzes system calls in Go binaries.
@@ -44,41 +45,18 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 	if err != nil {
 		return nil, err
 	}
-	syscalls := make([]syscallSource, 0)
-	err = callgraph.GraphVisitEdges(cg, func(edge *callgraph.Edge) error {
-		callee := edge.Callee.Func
-		if callee != nil && callee.Pkg != nil && callee.Pkg.Pkg != nil {
-			if slices.Contains(syscallAPIs, callee.String()) {
-				calls := traceSyscalls(edge.Site.Common().Args[0], edge, fset)
-				syscalls = append(syscalls, calls...)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
+	syscalls := a.extractSyscalls(cg)
 
 	// Check against allowed syscalls.
 	issues := make([]*analyzer.Issue, 0)
-	functions := make([]string, 0)
-	for _, syscall := range syscalls {
-		functions = append(functions, syscall.source.Function)
-	}
-	tracker := a.reachableFunctions(cg, functions)
-	stackTraceMap := make(map[string]*analyzer.IssueSource)
 	for i := range syscalls {
 		syscll := syscalls[i]
-		if slices.Contains(a.profile.AllowedSycalls, syscll.num) || !tracker[syscll.source.Function] {
+		if slices.Contains(a.profile.AllowedSycalls, syscll.num) {
 			continue
 		}
-		stackTrace := syscll.source
-		if withTrace {
-			stackTrace = stackTraceMap[syscll.source.Function]
-			if stackTrace == nil {
-				stackTrace, _ = a.trackStack(cg, fset, syscll.source.Function)
-				stackTraceMap[syscll.source.Function] = stackTrace
-			}
+		stackTrace := a.edgeToCallStack(syscll.edgeStack, fset)
+		if !withTrace {
+			stackTrace.CallStack = nil
 		}
 
 		severity := analyzer.IssueSeverityCritical
@@ -103,13 +81,88 @@ func (a *goSyscallAnalyser) TraceStack(path string, function string) (*analyzer.
 	if err != nil {
 		return nil, err
 	}
-	return a.trackStack(cg, fset, function)
+	sources := a.buildCallStack(cg, fset, []string{function})
+	if sources[function] == nil {
+		return nil, fmt.Errorf("no trace found to main for function %s not found", function)
+	}
+	return sources[function], nil
 }
 
-func (a *goSyscallAnalyser) trackStack(cg *callgraph.Graph, fset *token.FileSet, function string) (*analyzer.IssueSource, error) {
+func (a *goSyscallAnalyser) extractSyscalls(cg *callgraph.Graph) []*syscallSource {
+	sources := make([]*lifo.Stack[*callgraph.Edge], 0)
+	currentStack := lifo.Stack[*callgraph.Edge]{}
 	seen := make(map[*callgraph.Node]bool)
-	var visit func(n *callgraph.Node, edge *callgraph.Edge) *analyzer.IssueSource
-	visit = func(n *callgraph.Node, edge *callgraph.Edge) *analyzer.IssueSource {
+
+	var visit func(n *callgraph.Node, edge *callgraph.Edge)
+
+	visit = func(n *callgraph.Node, edge *callgraph.Edge) {
+		if seen[n] {
+			return
+		}
+		seen[n] = true
+
+		if edge != nil && edge.Caller != nil && edge.Site != nil {
+			currentStack.Push(edge)
+			if edge.Callee != nil && slices.Contains(syscallAPIs, edge.Callee.Func.String()) {
+				sources = append(sources, currentStack.Copy())
+			}
+		}
+
+		for _, e := range n.Out {
+			if !seen[e.Callee] {
+				visit(e.Callee, e)
+			}
+		}
+
+		if edge != nil {
+			currentStack.Pop()
+		}
+		seen[n] = false
+	}
+
+	for _, n := range cg.Nodes {
+		if n.Func.String() == "command-line-arguments.main" {
+			visit(n, nil)
+		}
+	}
+
+	syscalls := make([]*syscallSource, 0)
+	for _, stack := range sources {
+		edge, _ := stack.Peek() // It must be a syscall API
+		calls := resolveSyscallValue(edge.Site.Common().Args[0], stack)
+		syscalls = append(syscalls, calls...)
+	}
+
+	return syscalls
+}
+
+func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], fset *token.FileSet) *analyzer.IssueSource {
+	var issueSource *analyzer.IssueSource
+	for !stack.IsEmpty() {
+		edge, _ := stack.Pop()
+		position := fset.Position(edge.Site.Pos())
+		src := &analyzer.IssueSource{
+			File:     position.Filename,
+			Line:     position.Line,
+			Function: edge.Caller.Func.String(),
+			AbsPath:  filepath.Clean(position.Filename),
+		}
+		if issueSource != nil {
+			src.CallStack = issueSource
+		}
+		issueSource = src
+	}
+
+	return issueSource
+}
+
+func (a *goSyscallAnalyser) buildCallStack(cg *callgraph.Graph, fset *token.FileSet, functions []string) map[string]*analyzer.IssueSource {
+	sources := make(map[string]*lifo.Stack[*analyzer.IssueSource])
+	currentStack := lifo.Stack[*analyzer.IssueSource]{}
+	seen := make(map[*callgraph.Node]bool)
+	var visit func(n *callgraph.Node, edge *callgraph.Edge)
+
+	visit = func(n *callgraph.Node, edge *callgraph.Edge) {
 		var src *analyzer.IssueSource
 		if edge != nil && edge.Caller != nil && edge.Site != nil {
 			position := fset.Position(edge.Site.Pos())
@@ -120,36 +173,44 @@ func (a *goSyscallAnalyser) trackStack(cg *callgraph.Graph, fset *token.FileSet,
 				Function: fn,
 				AbsPath:  filepath.Clean(position.Filename),
 			}
-			if fn == function {
-				return src
+			currentStack.Push(src)
+
+			if slices.Contains(functions, fn) {
+				sources[fn] = currentStack.Copy()
+				if len(sources) == len(functions) {
+					return
+				}
 			}
 		}
 		// as we are checking edge.Caller we need to get 1 step deeper everytime, that requires to re-visit the node
 		if seen[n] {
-			return nil
+			return
 		}
 		seen[n] = true
 
 		for _, e := range n.Out {
-			ch := visit(e.Callee, e)
-			if ch != nil {
-				if src != nil {
-					ch.AddCallStack(src)
-				}
-				return ch
-			}
+			visit(e.Callee, e)
+			currentStack.Pop()
 		}
-		return nil
 	}
 
 	for _, n := range cg.Nodes {
 		if n.Func.String() == "command-line-arguments.main" || n.Func.String() == "command-line-arguments.init" {
-			if source := visit(n, nil); source != nil {
-				return source, nil
-			}
+			visit(n, nil)
 		}
 	}
-	return nil, fmt.Errorf("no trace found to root for the given function")
+	issuesSources := make(map[string]*analyzer.IssueSource)
+	for fn, stack := range sources {
+		source, _ := stack.Pop()
+		for !stack.IsEmpty() {
+			parent, _ := stack.Pop()
+			parent.CallStack = source
+			source = parent
+		}
+		issuesSources[fn] = source
+	}
+
+	return issuesSources
 }
 
 func (a *goSyscallAnalyser) buildCallGraph(path string) (*callgraph.Graph, *token.FileSet, error) {
@@ -220,7 +281,7 @@ func (a *goSyscallAnalyser) reachableFunctions(cg *callgraph.Graph, functions []
 	}
 
 	for _, n := range cg.Nodes {
-		if n.Func.String() == "command-line-arguments.main" || n.Func.String() == "command-line-arguments.init" {
+		if n.Func.String() == "command-line-arguments.main" {
 			visit(n)
 		}
 	}
@@ -228,36 +289,42 @@ func (a *goSyscallAnalyser) reachableFunctions(cg *callgraph.Graph, functions []
 }
 
 type syscallSource struct {
-	num    int
-	source *analyzer.IssueSource
+	num       int
+	edgeStack *lifo.Stack[*callgraph.Edge]
 }
 
-func traceSyscalls(value ssa.Value, edge *callgraph.Edge, fset *token.FileSet) []syscallSource {
-	result := make([]syscallSource, 0)
+func resolveSyscallValue(value ssa.Value, edgeStack *lifo.Stack[*callgraph.Edge]) []*syscallSource {
+	result := make([]*syscallSource, 0)
 	switch v := value.(type) {
 	case *ssa.Const:
 		valInt, err := strconv.Atoi(v.Value.String())
 		if err == nil {
-			position := fset.Position(edge.Site.Pos())
-			return []syscallSource{{num: valInt,
-				source: &analyzer.IssueSource{
-					File:     position.Filename,
-					Line:     position.Line,
-					Function: edge.Caller.Func.String(),
-					AbsPath:  filepath.Clean(position.Filename),
-				},
-			}}
+			return []*syscallSource{{num: valInt, edgeStack: edgeStack.Copy()}}
 		}
 	case *ssa.Global:
-		result = append(result, traceInit(v, v.Pkg.Members, edge, fset)...)
-	case *ssa.Parameter:
-		prev := edge.Caller.In
-		for _, p := range prev {
-			result = append(result, traceSyscalls(p.Site.Common().Args[0], p, fset)...)
+		// Iterate through instructions in the Init function
+		// Iterate through all functions in the package to find the initialization
+		for _, member := range v.Pkg.Members {
+			if fn, ok := member.(*ssa.Function); ok {
+				for _, block := range fn.Blocks {
+					for _, instr := range block.Instrs {
+						// Look for Store instructions
+						if store, ok := instr.(*ssa.Store); ok {
+							if store.Addr == v {
+								result = append(result, resolveSyscallValue(store.Val, edgeStack)...)
+							}
+						}
+					}
+				}
+			}
 		}
+	case *ssa.Parameter:
+		cpStack := edgeStack.Copy()
+		prev, _ := cpStack.Pop()
+		result = append(result, resolveSyscallValue(prev.Site.Common().Args[0], cpStack)...)
 	case *ssa.Phi:
 		for _, val := range v.Edges {
-			result = append(result, traceSyscalls(val, edge, fset)...)
+			result = append(result, resolveSyscallValue(val, edgeStack)...) // TODO: debug
 		}
 	case *ssa.Call:
 		// Trace nested calls
@@ -267,15 +334,15 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge, fset *token.FileSet) [
 				// Look for return instructions
 				if ret, ok := instr.(*ssa.Return); ok {
 					for _, val := range ret.Results {
-						result = append(result, traceSyscalls(val, edge, fset)...)
+						result = append(result, resolveSyscallValue(val, edgeStack)...)
 					}
 				}
 			}
 		}
 	case *ssa.UnOp:
-		result = append(result, traceSyscalls(v.X, edge, fset)...)
+		result = append(result, resolveSyscallValue(v.X, edgeStack)...)
 	case *ssa.Convert:
-		result = append(result, traceSyscalls(v.X, edge, fset)...)
+		result = append(result, resolveSyscallValue(v.X, edgeStack)...)
 	case *ssa.FieldAddr:
 		// check all instructions to get the latest value store for this field address
 		var val ssa.Value
@@ -288,30 +355,10 @@ func traceSyscalls(value ssa.Value, edge *callgraph.Edge, fset *token.FileSet) [
 				}
 			}
 		}
-		result = append(result, traceSyscalls(val, edge, fset)...)
+		result = append(result, resolveSyscallValue(val, edgeStack)...)
 	default:
 		fmt.Printf("Unhandled value type: %T\n", v)
 		panic("not handled")
-	}
-	return result
-}
-
-func traceInit(v *ssa.Global, members map[string]ssa.Member, edge *callgraph.Edge, fset *token.FileSet) (result []syscallSource) {
-	// Iterate through instructions in the Init function
-	// Iterate through all functions in the package to find the initialization
-	for _, member := range members {
-		if fn, ok := member.(*ssa.Function); ok {
-			for _, block := range fn.Blocks {
-				for _, instr := range block.Instrs {
-					// Look for Store instructions
-					if store, ok := instr.(*ssa.Store); ok {
-						if store.Addr == v {
-							result = append(result, traceSyscalls(store.Val, edge, fset)...)
-						}
-					}
-				}
-			}
-		}
 	}
 	return result
 }
