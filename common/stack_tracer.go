@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
+	"path/filepath"
+
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
-	"path/filepath"
 )
 
 // TraceAsmCaller correctly tracks function calls in the execution stack.
@@ -12,6 +13,7 @@ func TraceAsmCaller(
 	filePath string,
 	graph asmparser.CallGraph,
 	function string,
+	endCond func(string) bool,
 ) (*analyzer.IssueSource, error) {
 	var segment asmparser.Segment
 	for _, seg := range graph.Segments() {
@@ -38,7 +40,7 @@ func TraceAsmCaller(
 			AbsPath:  filePath,
 			Function: segment.Label(),
 		}
-		if source.Function == "runtime.rt0_go" || source.Function == "main.main" { // entry point of a go program
+		if endCond(source.Function) {
 			return source
 		}
 		for _, seg := range graph.ParentsOf(segment) {

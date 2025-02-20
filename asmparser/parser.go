@@ -34,12 +34,21 @@ type Segment interface {
 	Label() string
 	// Instructions return the list of instructions in the segment.
 	Instructions() []Instruction
-	// RetrieveSyscallNum returns the number of the syscall from the instr
-	RetrieveSyscallNum(instr Instruction) (int, error)
 }
 
 // CallGraph defines an interface representing a call graph of segments.
 type CallGraph interface {
-	Segments() []Segment                 // Segments returns all segments in the call graph.
-	ParentsOf(segment Segment) []Segment // ParentsOf returns the parent segments of a given segment.
+	// Segments returns all segments in the call graph.
+	Segments() []Segment
+	// ParentsOf returns the parent segments of a given segment.
+	ParentsOf(segment Segment) []Segment
+	// RetrieveSyscallNum returns the number of the syscall from the instr
+	RetrieveSyscallNum(segment Segment, instr Instruction) ([]*Syscall, error)
+}
+
+// Syscall holds syscall origin related details
+type Syscall struct {
+	Number      int
+	Segment     Segment
+	Instruction Instruction
 }

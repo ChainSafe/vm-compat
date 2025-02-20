@@ -93,7 +93,7 @@ make analyser
 #### Analyze Command
 
 ```sh
-./bin/analyzer analyze [command options]
+./bin/analyzer analyze [command options] arg[source path]
 ```
 
 #### Analyze Options
@@ -111,7 +111,7 @@ make analyser
 #### Trace Command
 
 ```sh
-./bin/analyzer trace [command options]
+./bin/analyzer trace [command options] arg[source path]
 ```
 
 #### Trace Options
@@ -120,7 +120,8 @@ make analyser
 |-----------------------|----------------------------------------------------------------------------------------|---------|
 | `--vm-profile value`  | Path to the VM profile config file (required).                                         | None    |
 | `--function value`    | Name of the function to trace. Include package name (e.g., `syscall.read`). (required) | None    |
-| `--help, -h`         | Show help.                                                                             | None    |
+| `--source-type value` | Assembly or go source code.                                                            | None    |
+| `--help, -h`          | Show help.                                                                             | None    |
 
 ## Example Usage
 
@@ -134,7 +135,7 @@ make analyser
 ### Running a Trace
 
 ```sh
-./bin/analyzer trace --vm-profile=./profile/cannon/cannon-64.yaml --function=syscall.read
+./bin/analyzer trace --vm-profile=./profile/cannon/cannon-64.yaml --function=syscall.read sample.asm
 
 ````
 

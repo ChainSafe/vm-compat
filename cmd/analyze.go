@@ -90,7 +90,7 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 		return fmt.Errorf("error disassembling the file: %w", err)
 	}
 
-	issues, err := analyze(prof, source, disassemblyPath, analysisType, withTrace)
+	issues, err := analyze(prof, disassemblyPath, analysisType, withTrace)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -117,19 +117,19 @@ func disassemble(prof *profile.VMProfile, path, outputPath string) (string, erro
 }
 
 // analyze runs the selected analyzer(s).
-func analyze(prof *profile.VMProfile, path, disassemblyPath, mode string, withTrace bool) ([]*analyzer.Issue, error) {
+func analyze(prof *profile.VMProfile, disassemblyPath, mode string, withTrace bool) ([]*analyzer.Issue, error) {
 	if mode == "opcode" {
 		return opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace)
 	}
 	if mode == "syscall" {
-		return analyzeSyscalls(prof, path, disassemblyPath, withTrace)
+		return syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace)
 	}
 	// by default analyze both
 	opIssues, err := opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace)
 	if err != nil {
 		return nil, err
 	}
-	sysIssues, err := analyzeSyscalls(prof, path, disassemblyPath, withTrace)
+	sysIssues, err := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace)
 	if err != nil {
 		return nil, err
 	}
@@ -167,16 +167,4 @@ func writeReport(issues []*analyzer.Issue, format, outputPath string, prof *prof
 	}
 
 	return rendererInstance.Render(issues, output)
-}
-
-func analyzeSyscalls(profile *profile.VMProfile, source string, disassemblyPath string, withTrace bool) ([]*analyzer.Issue, error) {
-	issues, err := syscall.NewGOSyscallAnalyser(profile).Analyze(source, withTrace)
-	if err != nil {
-		return nil, err
-	}
-	issues2, err := syscall.NewAssemblySyscallAnalyser(profile).Analyze(disassemblyPath, withTrace)
-	if err != nil {
-		return nil, err
-	}
-	return append(issues, issues2...), nil
 }

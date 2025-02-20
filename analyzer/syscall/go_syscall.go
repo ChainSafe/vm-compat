@@ -22,9 +22,9 @@ import (
 
 var syscallAPIs = []string{
 	"syscall.RawSyscall6",
-	//"syscall.rawSyscallNoError",
-	//"syscall.rawVforkSyscall",
-	//"syscall.runtime_doAllThreadsSyscall",
+	"syscall.rawSyscallNoError",
+	"syscall.rawVforkSyscall",
+	"syscall.runtime_doAllThreadsSyscall",
 }
 
 // goSyscallAnalyser analyzes system calls in Go binaries.
@@ -54,10 +54,7 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 		if slices.Contains(a.profile.AllowedSycalls, syscll.num) {
 			continue
 		}
-		stackTrace := a.edgeToCallStack(syscll.edgeStack, fset)
-		if !withTrace {
-			stackTrace.CallStack = nil
-		}
+		stackTrace := a.edgeToCallStack(syscll.edgeStack, fset, withTrace)
 
 		severity := analyzer.IssueSeverityCritical
 		message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscll.num)
@@ -91,37 +88,32 @@ func (a *goSyscallAnalyser) TraceStack(path string, function string) (*analyzer.
 func (a *goSyscallAnalyser) extractSyscalls(cg *callgraph.Graph) []*syscallSource {
 	sources := make([]*lifo.Stack[*callgraph.Edge], 0)
 	currentStack := lifo.Stack[*callgraph.Edge]{}
-	seen := make(map[*callgraph.Node]bool)
+	seen := make(map[*callgraph.Edge]bool)
 
 	var visit func(n *callgraph.Node, edge *callgraph.Edge)
 
 	visit = func(n *callgraph.Node, edge *callgraph.Edge) {
-		if seen[n] {
-			return
-		}
-		seen[n] = true
-
-		if edge != nil && edge.Caller != nil && edge.Site != nil {
+		if edge != nil {
 			currentStack.Push(edge)
-			if edge.Callee != nil && slices.Contains(syscallAPIs, edge.Callee.Func.String()) {
-				sources = append(sources, currentStack.Copy())
-			}
 		}
 
-		for _, e := range n.Out {
-			if !seen[e.Callee] {
-				visit(e.Callee, e)
+		if edge != nil && edge.Callee != nil && slices.Contains(syscallAPIs, edge.Callee.Func.String()) {
+			sources = append(sources, currentStack.Copy())
+		} else {
+			seen[edge] = true
+			for _, e := range n.Out {
+				if !seen[e] {
+					visit(e.Callee, e)
+				}
 			}
 		}
-
 		if edge != nil {
 			currentStack.Pop()
 		}
-		seen[n] = false
 	}
 
 	for _, n := range cg.Nodes {
-		if n.Func.String() == "command-line-arguments.main" {
+		if isRoot(n.Func.String()) {
 			visit(n, nil)
 		}
 	}
@@ -130,16 +122,22 @@ func (a *goSyscallAnalyser) extractSyscalls(cg *callgraph.Graph) []*syscallSourc
 	for _, stack := range sources {
 		edge, _ := stack.Peek() // It must be a syscall API
 		calls := resolveSyscallValue(edge.Site.Common().Args[0], stack)
+		for _, call := range calls {
+			call.edgeStack = stack
+		}
 		syscalls = append(syscalls, calls...)
 	}
 
 	return syscalls
 }
 
-func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], fset *token.FileSet) *analyzer.IssueSource {
+func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], fset *token.FileSet, fullStack bool) *analyzer.IssueSource {
 	var issueSource *analyzer.IssueSource
 	for !stack.IsEmpty() {
 		edge, _ := stack.Pop()
+		if edge.Site == nil {
+			continue
+		}
 		position := fset.Position(edge.Site.Pos())
 		src := &analyzer.IssueSource{
 			File:     position.Filename,
@@ -151,6 +149,9 @@ func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], 
 			src.CallStack = issueSource
 		}
 		issueSource = src
+		if !fullStack {
+			return issueSource
+		}
 	}
 
 	return issueSource
@@ -195,7 +196,7 @@ func (a *goSyscallAnalyser) buildCallStack(cg *callgraph.Graph, fset *token.File
 	}
 
 	for _, n := range cg.Nodes {
-		if n.Func.String() == "command-line-arguments.main" || n.Func.String() == "command-line-arguments.init" {
+		if isRoot(n.Func.String()) {
 			visit(n, nil)
 		}
 	}
@@ -258,34 +259,6 @@ func (a *goSyscallAnalyser) buildCallGraph(path string) (*callgraph.Graph, *toke
 	cg.DeleteSyntheticNodes()
 
 	return cg, initial[0].Fset, nil
-}
-
-func (a *goSyscallAnalyser) reachableFunctions(cg *callgraph.Graph, functions []string) map[string]bool {
-	seen := make(map[*callgraph.Node]bool)
-	tracker := make(map[string]bool)
-
-	var visit func(n *callgraph.Node)
-	visit = func(n *callgraph.Node) {
-		if seen[n] {
-			return
-		}
-		seen[n] = true
-
-		if slices.Contains(functions, n.Func.String()) {
-			tracker[n.Func.String()] = true
-		}
-
-		for _, e := range n.Out {
-			visit(e.Callee)
-		}
-	}
-
-	for _, n := range cg.Nodes {
-		if n.Func.String() == "command-line-arguments.main" {
-			visit(n)
-		}
-	}
-	return tracker
 }
 
 type syscallSource struct {
@@ -396,4 +369,8 @@ func initFuncs(pkgs []*ssa.Package) []*ssa.Function {
 		}
 	}
 	return inits
+}
+
+func isRoot(function string) bool {
+	return function == "command-line-arguments.main" || function == "command-line-arguments.init"
 }

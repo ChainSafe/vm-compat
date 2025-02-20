@@ -23,18 +23,11 @@ func NewAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 }
 
 func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
-	var err error
-	var callGraph asmparser.CallGraph
-
-	switch op.profile.GOARCH {
-	case "mips32", "mips64":
-		callGraph, err = mips.NewParser().Parse(path)
-	default:
-		return nil, fmt.Errorf("unsupported GOARCH %s", op.profile.GOARCH)
-	}
+	callGraph, err := op.buildCallGraph(path)
 	if err != nil {
 		return nil, err
 	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -43,7 +36,7 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
-				source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label())
+				source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label(), endCondition)
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
@@ -62,11 +55,37 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 	return issues, nil
 }
 
-// TraceStack generates callstack for a function to debug
-func (op *opcode) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
-	return nil, fmt.Errorf("stack trace is not supported for assembly code")
+func (op *opcode) buildCallGraph(path string) (asmparser.CallGraph, error) {
+	var (
+		err       error
+		callGraph asmparser.CallGraph
+	)
+
+	// Select the correct parser based on architecture.
+	switch op.profile.GOARCH {
+	case "mips32", "mips64":
+		callGraph, err = mips.NewParser().Parse(path)
+	default:
+		return nil, fmt.Errorf("unsupported GOARCH: %s", op.profile.GOARCH)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error parsing assembly file: %w", err)
+	}
+	return callGraph, nil
 }
 
+// TraceStack generates callstack for a function to debug
+func (op *opcode) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+	graph, err := op.buildCallGraph(path)
+	if err != nil {
+		return nil, err
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	return common.TraceAsmCaller(absPath, graph, function, endCondition)
+}
 func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 	return slices.ContainsFunc(op.profile.AllowedOpcodes, func(instr profile.OpcodeInstruction) bool {
 		if !strings.EqualFold(instr.Opcode, opcode) {
@@ -79,4 +98,11 @@ func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 			return strings.EqualFold(s, funct)
 		})
 	})
+}
+
+func endCondition(function string) bool {
+	return function == "runtime.rt0_go" || // start point of a go program
+		function == "main.main" || // main
+		strings.Contains(function, ".init.") || // all init functions
+		strings.HasSuffix(function, ".init") // vars
 }
