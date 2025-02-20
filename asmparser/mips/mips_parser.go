@@ -344,7 +344,7 @@ func (g *callGraph) RetrieveSyscallNum(seg asmparser.Segment, instr asmparser.In
 			}
 			// multiple jump possible
 			for i, inst := range seg.instructions {
-				if inst.isJump() && uint64(inst.jumpTarget()) == childSeg.address {
+				if inst.isJump() && uint64(inst.jumpTarget()) == childSeg.address { //nolint:gosec
 					res, err := resolveRegisterValue(register, offset, i, seg, childSeg)
 					if err != nil {
 						return nil, err
