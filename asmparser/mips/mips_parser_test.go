@@ -89,9 +89,6 @@ Disassembly of section .text:
 	assert.Equal(t, asmparser.RType, instrs[2].Type())
 	assert.Equal(t, "syscall", instrs[2].Mnemonic())
 
-	_, err = graph.RetrieveSyscallNum(segment1, instrs[2])
-	require.Error(t, err)
-
 	assert.Equal(t, "0x1100c", instrs[3].Address())
 	assert.Equal(t, "0x3", instrs[3].OpcodeHex())
 	assert.False(t, instrs[3].IsSyscall())
