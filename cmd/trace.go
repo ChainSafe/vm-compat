@@ -19,6 +19,12 @@ var (
 		Usage:    "Name of the function to trace. Name should include with package name. Ex: syscall.read",
 		Required: true,
 	}
+	SourceTypeFlag = &cli.StringFlag{
+		Name:     "source-type",
+		Usage:    "Tracing on 'go' source code or 'assembly' code. Default assembly",
+		Required: false,
+		Value:    "assembly",
+	}
 )
 
 func CreateTraceCommand(action cli.ActionFunc) *cli.Command {
@@ -30,6 +36,7 @@ func CreateTraceCommand(action cli.ActionFunc) *cli.Command {
 		Flags: []cli.Flag{
 			VMProfileFlag,
 			FunctionNameFlag,
+			SourceTypeFlag,
 		},
 	}
 }
@@ -43,11 +50,18 @@ func TraceCaller(ctx *cli.Context) error {
 		return fmt.Errorf("error loading profile: %w", err)
 	}
 
-	function := ctx.Path(FunctionNameFlag.Name)
-	source := ctx.Args().First()
+	function := ctx.String(FunctionNameFlag.Name)
+	sourceType := ctx.String(SourceTypeFlag.Name)
+	path := ctx.Args().First()
 
-	analyzer := syscall.NewGOSyscallAnalyser(prof)
-	callStack, err := analyzer.TraceStack(source, function)
+	var analyzer analyzer.Analyzer
+	if sourceType == "go" {
+		analyzer = syscall.NewGOSyscallAnalyser(prof)
+	} else {
+		analyzer = syscall.NewAssemblySyscallAnalyser(prof)
+	}
+
+	callStack, err := analyzer.TraceStack(path, function)
 	if err != nil {
 		return err
 	}

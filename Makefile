@@ -11,7 +11,7 @@ get:
 .PHONY: get_lint
 get_lint:
 	@if [ ! -f ./bin/golangci-lint ]; then \
-		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.57.2; \
+		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.63.0; \
 	fi;
 
 .PHONY: lint

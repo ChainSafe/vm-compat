@@ -89,9 +89,6 @@ Disassembly of section .text:
 	assert.Equal(t, asmparser.RType, instrs[2].Type())
 	assert.Equal(t, "syscall", instrs[2].Mnemonic())
 
-	_, err = segment1.RetrieveSyscallNum(instrs[2])
-	require.Error(t, err)
-
 	assert.Equal(t, "0x1100c", instrs[3].Address())
 	assert.Equal(t, "0x3", instrs[3].OpcodeHex())
 	assert.False(t, instrs[3].IsSyscall())
@@ -117,9 +114,9 @@ Disassembly of section .text:
 	assert.Equal(t, asmparser.IType, instrs[3].Type())
 	assert.Equal(t, "daddiu", instrs[3].Mnemonic())
 
-	syscallNum, err := segment2.RetrieveSyscallNum(instrs[4])
+	syscallNums, err := graph.RetrieveSyscallNum(segment2, instrs[4])
 	require.NoError(t, err)
-	assert.Equal(t, 5000, syscallNum)
+	assert.Equal(t, 5000, syscallNums[0].Number)
 
 	assert.Equal(t, "0x8d9ec", instrs[5].Address())
 	assert.Equal(t, "0x4", instrs[5].OpcodeHex())
@@ -134,4 +131,81 @@ Disassembly of section .text:
 	assert.Equal(t, "0xf", instrs[6].Funct())
 	assert.Equal(t, asmparser.RType, instrs[6].Type())
 	assert.Equal(t, "sync", instrs[6].Mnemonic())
+}
+
+func TestIndirectSyscall(t *testing.T) {
+	tempFile, err := os.CreateTemp("", "sample.asm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	content := `/sample: file format elf64-tradbigmips
+
+Disassembly of section .text:
+
+0000000000011000 <main>:
+   937e8:	64 01 00 02 	daddiu	at,zero,2
+   937ec:	ff a1 00 08 	sd	at,8(sp)
+   937f0:	64 01 00 01 	daddiu	at,zero,1
+   937f4:	ff a1 00 10 	sd	at,16(sp)
+   937f8:	ff a1 00 18 	sd	at,24(sp)
+   937fc:	ff a1 00 20 	sd	at,32(sp)
+   93800:	ff a1 00 28 	sd	at,40(sp)
+   93804:	ff a1 00 30 	sd	at,48(sp)
+   93808:	ff a1 00 38 	sd	at,56(sp)
+   9380c:	0c 00 48 e6 	jal	12398 <syscall.RawSyscall6>
+0000000000012398 <syscall.RawSyscall6>:
+   12398:	ff bf ff a8 	sd	ra,-88(sp)
+   1239c:	63 bd ff a8 	daddi	sp,sp,-88
+   123a0:	ff bf 00 00 	sd	ra,0(sp)
+   123a4:	df a1 00 60 	ld	at,96(sp)
+   123a8:	ff a1 00 08 	sd	at,8(sp)
+   123ac:	df a1 00 68 	ld	at,104(sp)
+   123b0:	ff a1 00 10 	sd	at,16(sp)
+   123b4:	df a1 00 70 	ld	at,112(sp)
+   123b8:	ff a1 00 18 	sd	at,24(sp)
+   123bc:	df a1 00 78 	ld	at,120(sp)
+   123c0:	ff a1 00 20 	sd	at,32(sp)
+   123c4:	df a1 00 80 	ld	at,128(sp)
+   123c8:	ff a1 00 28 	sd	at,40(sp)
+   123cc:	df a1 00 88 	ld	at,136(sp)
+   123d0:	ff a1 00 30 	sd	at,48(sp)
+   123d4:	df a1 00 90 	ld	at,144(sp)
+   123d8:	ff a1 00 38 	sd	at,56(sp)
+   123dc:	0c 00 49 04 	jal	12410 <runtime/internal/syscall.Syscall6>
+0000000000012410 <runtime/internal/syscall.Syscall6>:
+   12410:	df a2 00 08 	ld	v0,8(sp)
+   12414:	df a4 00 10 	ld	a0,16(sp)
+   12418:	df a5 00 18 	ld	a1,24(sp)
+   1241c:	df a6 00 20 	ld	a2,32(sp)
+   12420:	df a7 00 28 	ld	a3,40(sp)
+   12424:	df a8 00 30 	ld	a4,48(sp)
+   12428:	df a9 00 38 	ld	a5,56(sp)
+   1242c:	00 00 18 25 	move	v1,zero
+   12430:	00 00 00 0c 	syscall
+`
+	if _, err = tempFile.WriteString(content); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = tempFile.Close()
+	}()
+
+	parser := NewParser()
+	graph, err := parser.Parse(tempFile.Name())
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	var syscalls []*asmparser.Syscall
+	for _, seg := range graph.Segments() {
+		for _, instr := range seg.Instructions() {
+			if instr.IsSyscall() {
+				res, err := graph.RetrieveSyscallNum(seg, instr)
+				assert.NoError(t, err)
+				syscalls = append(syscalls, res...)
+			}
+		}
+	}
+	assert.Equal(t, 2, syscalls[0].Number)
 }

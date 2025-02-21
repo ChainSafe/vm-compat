@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -14,6 +13,7 @@ func TraceAsmCaller(
 	filePath string,
 	graph asmparser.CallGraph,
 	function string,
+	endCond func(string) bool,
 ) (*analyzer.IssueSource, error) {
 	var segment asmparser.Segment
 	for _, seg := range graph.Segments() {
@@ -40,7 +40,7 @@ func TraceAsmCaller(
 			AbsPath:  filePath,
 			Function: segment.Label(),
 		}
-		if strings.Contains(source.Function, ".init") { // where to end
+		if endCond(source.Function) {
 			return source
 		}
 		for _, seg := range graph.ParentsOf(segment) {

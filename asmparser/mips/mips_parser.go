@@ -4,7 +4,6 @@ package mips
 import (
 	"bufio"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,8 +15,9 @@ import (
 
 // Constants defining MIPS register indexes.
 const (
-	registerZero = 0 // $zero register index in MIPS
-	registerV0   = 2 // $v0 register index in MIPS
+	registerZero = 0  // $zero register index in MIPS
+	registerV0   = 2  // $v0 register index in MIPS
+	registerSP   = 29 // $sp (Stack Pointer)
 )
 
 var (
@@ -270,41 +270,6 @@ func (s *segment) Instructions() []asmparser.Instruction {
 	return instrs
 }
 
-// RetrieveSyscallNum extracts the syscall number by analyzing the preceding instructions.
-// Limitations:
-// - Only supports `daddui` and `addui` instructions for loading syscall numbers.
-// - Assumes that `v0` is set by an immediate operation and does not track register dependencies.
-// - Does not handle indirect loading methods or data-dependent values.
-func (s *segment) RetrieveSyscallNum(instr asmparser.Instruction) (int, error) {
-	ins, ok := instr.(*instruction)
-	if !ok {
-		return 0, fmt.Errorf("invalid instruction type: expected MIPS instruction, got %T", instr)
-	}
-	offset := ins.address - s.address
-	indexOfInstr := offset / uint64(4)
-
-	// every value of i is a uint64 which is always >= 0, hence check against max uint64
-	// TODO: if some instruction is skipped this may fail to target the correct one
-	for i := indexOfInstr - 1; i < math.MaxUint64; i-- {
-		currInstr := s.instructions[i]
-		if currInstr.instType == asmparser.RType && len(currInstr.operands) > 2 && currInstr.operands[2] == registerV0 {
-			return 0, fmt.Errorf("unsupported operation: register v0 modified before syscall assignment at %s",
-				currInstr.Address())
-		}
-		if currInstr.instType == asmparser.IType && len(currInstr.operands) > 2 && currInstr.operands[1] == registerV0 {
-			if currInstr.opcode == 0x19 || currInstr.opcode == 0x09 { // daddui or addui
-				if currInstr.operands[0] != registerZero {
-					return 0, fmt.Errorf("unsupported operation: syscall number must be loaded from $zero at address %s",
-						currInstr.Address())
-				}
-				return int(currInstr.operands[2]), nil
-			}
-		}
-	}
-
-	return 0, fmt.Errorf("failed to retrieve syscall number: no valid assignment to register $v0 found in segment")
-}
-
 // callGraph represents a graph structure implementing asmparser.CallGraph.
 type callGraph struct {
 	segments map[uint64]*segment
@@ -348,4 +313,140 @@ func (g *callGraph) addSegment(seg *segment) {
 		seg.parents = existingSeg.parents
 	}
 	g.segments[seg.address] = seg
+}
+
+// RetrieveSyscallNum extracts the syscall number by analyzing the preceding instructions.
+// Limitation: If syscall number is dynamically generated, it cannot trace that
+func (g *callGraph) RetrieveSyscallNum(seg asmparser.Segment, instr asmparser.Instruction) ([]*asmparser.Syscall, error) {
+	ins, ok := instr.(*instruction)
+	if !ok {
+		return nil, fmt.Errorf("invalid instruction type: expected MIPS instruction, got %T", instr)
+	}
+	s, ok := seg.(*segment)
+	if !ok {
+		return nil, fmt.Errorf("invalid segment type: expected MIPS segment, got %T", seg)
+	}
+	var indexOfInstr int
+	for i, _instr := range s.instructions {
+		if _instr.Address() == ins.Address() {
+			indexOfInstr = i
+		}
+	}
+	var resolveRegisterValue func(register, offset int64, instrIdx int, seg, childSeg *segment) ([]*asmparser.Syscall, error)
+	seen := make(map[*segment]bool)
+	resolveRegisterValue = func(register, offset int64, instrIdx int, seg, childSeg *segment) ([]*asmparser.Syscall, error) {
+		result := make([]*asmparser.Syscall, 0)
+		// Special case, where we don't know from where to start
+		// Need to find out instruction index
+		if instrIdx == -2 {
+			if seen[seg] {
+				return result, nil
+			}
+			// multiple jump possible
+			for i, inst := range seg.instructions {
+				if inst.isJump() && uint64(inst.jumpTarget()) == childSeg.address { //nolint:gosec
+					res, err := resolveRegisterValue(register, offset, i, seg, childSeg)
+					if err != nil {
+						return nil, err
+					}
+					result = append(result, res...)
+				}
+			}
+			return result, nil
+		}
+		// When all the instruction has finished while processing,
+		// Need to track back to it's caller
+		if instrIdx == -1 {
+			seen[seg] = true
+			parents := g.ParentsOf(seg)
+			if len(parents) == 0 {
+				// Here, we cannot resolve any value for syscall, reasons can be it's being assigned in runtime.
+				// Fine to ignore those syscall
+				return result, nil
+			}
+			for _, sg := range parents {
+				res, err := resolveRegisterValue(register, offset, -2, sg.(*segment), seg)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, res...)
+			}
+			return result, nil
+		}
+
+		currInstr := seg.instructions[instrIdx]
+		switch currInstr.instType {
+		case asmparser.RType:
+			if len(currInstr.operands) > 2 {
+				rd := currInstr.operands[2] // destination register
+				// If the destination register is our target register,
+				// we need to resolve the value for it
+				if rd == register {
+					return nil, fmt.Errorf("not handled modification of register in r-type instruction, instruction:%s", currInstr.Address())
+				}
+			}
+		case asmparser.IType:
+			if len(currInstr.operands) > 1 {
+				rs := currInstr.operands[0]
+				rt := currInstr.operands[1]
+				if rs == register || rt == register {
+					switch currInstr.opcode {
+					case 0x23, 0x24, 0x27, 0x37: // load from rs to rt - rt matters
+						if register == rt {
+							// Load to sp - need to match offset
+							if rt == registerSP && offset == currInstr.operands[2] {
+								register = rs
+							}
+							// Load from SP - update offset
+							if rs == registerSP {
+								offset = currInstr.operands[2]
+								register = rs
+							}
+						}
+					case 0x2B, 0x3F, 0x28: // store to rs from rt - rs matters
+						if register == rs {
+							// Store to SP - need to  match the offset
+							if rs == registerSP && offset == currInstr.operands[2] {
+								register = rt
+							}
+							// Store from SP - need to update the offset
+							if rt == registerSP {
+								offset = currInstr.operands[2]
+								register = rt
+							}
+						}
+						return resolveRegisterValue(register, offset, instrIdx-1, seg, childSeg)
+					case 0x08, 0x09, 0x18, 0x19: // add operations
+						if register == rt {
+							// need to check rs carefully
+							// case 1- memory shift of sp(daddi sp, sp, -88)
+							if rs == registerSP {
+								offset += currInstr.operands[2]
+								return resolveRegisterValue(register, offset, instrIdx-1, seg, childSeg)
+							}
+							// case 2- direct assigment to register where rs=registerZero
+							if rs == registerZero {
+								return []*asmparser.Syscall{{
+									Number:      int(currInstr.operands[2]),
+									Segment:     seg,
+									Instruction: currInstr,
+								}}, nil
+							}
+							return nil, fmt.Errorf("not handled modification of register in i-type instruction, instruction:%s", currInstr.Address())
+						}
+					default:
+						return nil, fmt.Errorf("not handled opcode, instruction:%s", currInstr.Address())
+					}
+				}
+			}
+		default:
+		}
+		return resolveRegisterValue(register, offset, instrIdx-1, seg, childSeg)
+	}
+
+	result, err := resolveRegisterValue(registerV0, 0, indexOfInstr-1, s, nil)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
