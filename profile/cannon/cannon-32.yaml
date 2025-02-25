@@ -1,6 +1,6 @@
 vm: Cannon
 goos: linux
-goarch: mips32
+goarch: mips
 ignored_functions:
 
 allowed_opcodes:
