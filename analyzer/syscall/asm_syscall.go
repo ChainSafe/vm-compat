@@ -87,7 +87,7 @@ func (a *asmSyscallAnalyser) buildCallGraph(path string) (asmparser.CallGraph, e
 
 	// Select the correct parser based on architecture.
 	switch a.profile.GOARCH {
-	case "mips32", "mips64":
+	case "mips", "mips64":
 		callGraph, err = mips.NewParser().Parse(path)
 	default:
 		return nil, fmt.Errorf("unsupported GOARCH: %s", a.profile.GOARCH)

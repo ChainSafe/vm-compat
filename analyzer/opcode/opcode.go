@@ -63,7 +63,7 @@ func (op *opcode) buildCallGraph(path string) (asmparser.CallGraph, error) {
 
 	// Select the correct parser based on architecture.
 	switch op.profile.GOARCH {
-	case "mips32", "mips64":
+	case "mips", "mips64":
 		callGraph, err = mips.NewParser().Parse(path)
 	default:
 		return nil, fmt.Errorf("unsupported GOARCH: %s", op.profile.GOARCH)
