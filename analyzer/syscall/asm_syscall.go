@@ -14,6 +14,12 @@ import (
 	"github.com/ChainSafe/vm-compat/profile"
 )
 
+const (
+	analyzerWorkingPrincipalURL = "https://github.com/ChainSafe/vm-compat?tab=readme-ov-file#how-it-works"
+	potentialImpactMsg          = `This syscall is present in the program, but its execution depends on the actual runtime behavior. 
+             If the execution path does not reach this syscall, it may not affect execution.`
+)
+
 // asmSyscallAnalyser analyzes system calls in assembly files.
 type asmSyscallAnalyser struct {
 	profile *profile.VMProfile
@@ -69,9 +75,11 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				}
 
 				issues = append(issues, &analyzer.Issue{
-					Severity: severity,
-					Message:  message,
-					Sources:  source,
+					Severity:  severity,
+					Message:   message,
+					CallStack: source,
+					Impact:    potentialImpactMsg,
+					Reference: analyzerWorkingPrincipalURL,
 				})
 			}
 		}
@@ -99,7 +107,7 @@ func (a *asmSyscallAnalyser) buildCallGraph(path string) (asmparser.CallGraph, e
 }
 
 // TraceStack generates callstack for a function to debug
-func (a *asmSyscallAnalyser) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+func (a *asmSyscallAnalyser) TraceStack(path string, function string) (*analyzer.CallStack, error) {
 	graph, err := a.buildCallGraph(path)
 	if err != nil {
 		return nil, err

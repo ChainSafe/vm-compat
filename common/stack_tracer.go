@@ -14,7 +14,7 @@ func TraceAsmCaller(
 	graph asmparser.CallGraph,
 	function string,
 	endCond func(string) bool,
-) (*analyzer.IssueSource, error) {
+) (*analyzer.CallStack, error) {
 	var segment asmparser.Segment
 	for _, seg := range graph.Segments() {
 		if seg.Label() == function {
@@ -26,15 +26,15 @@ func TraceAsmCaller(
 		return nil, fmt.Errorf("could not find %s in %s", function, filePath)
 	}
 	seen := make(map[asmparser.Segment]bool)
-	var visit func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.IssueSource
+	var visit func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.CallStack
 
-	visit = func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.IssueSource {
+	visit = func(graph asmparser.CallGraph, segment asmparser.Segment) *analyzer.CallStack {
 		if seen[segment] {
 			return nil
 		}
 		seen[segment] = true
 
-		source := &analyzer.IssueSource{
+		source := &analyzer.CallStack{
 			File:     filepath.Base(filePath),
 			Line:     segment.Instructions()[0].Line() - 1, // function start line
 			AbsPath:  filePath,

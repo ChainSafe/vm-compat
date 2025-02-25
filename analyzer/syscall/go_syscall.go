@@ -64,16 +64,16 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 		}
 
 		issues = append(issues, &analyzer.Issue{
-			Severity: severity,
-			Sources:  stackTrace,
-			Message:  message,
+			Severity:  severity,
+			CallStack: stackTrace,
+			Message:   message,
 		})
 	}
 
 	return issues, nil
 }
 
-func (a *goSyscallAnalyser) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+func (a *goSyscallAnalyser) TraceStack(path string, function string) (*analyzer.CallStack, error) {
 	cg, fset, err := a.buildCallGraph(path)
 	if err != nil {
 		return nil, err
@@ -131,15 +131,15 @@ func (a *goSyscallAnalyser) extractSyscalls(cg *callgraph.Graph) []*syscallSourc
 	return syscalls
 }
 
-func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], fset *token.FileSet, fullStack bool) *analyzer.IssueSource {
-	var issueSource *analyzer.IssueSource
+func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], fset *token.FileSet, fullStack bool) *analyzer.CallStack {
+	var issueSource *analyzer.CallStack
 	for !stack.IsEmpty() {
 		edge, _ := stack.Pop()
 		if edge.Site == nil {
 			continue
 		}
 		position := fset.Position(edge.Site.Pos())
-		src := &analyzer.IssueSource{
+		src := &analyzer.CallStack{
 			File:     position.Filename,
 			Line:     position.Line,
 			Function: edge.Caller.Func.String(),
@@ -157,18 +157,18 @@ func (a *goSyscallAnalyser) edgeToCallStack(stack *lifo.Stack[*callgraph.Edge], 
 	return issueSource
 }
 
-func (a *goSyscallAnalyser) buildCallStack(cg *callgraph.Graph, fset *token.FileSet, functions []string) map[string]*analyzer.IssueSource {
-	sources := make(map[string]*lifo.Stack[*analyzer.IssueSource])
-	currentStack := lifo.Stack[*analyzer.IssueSource]{}
+func (a *goSyscallAnalyser) buildCallStack(cg *callgraph.Graph, fset *token.FileSet, functions []string) map[string]*analyzer.CallStack {
+	sources := make(map[string]*lifo.Stack[*analyzer.CallStack])
+	currentStack := lifo.Stack[*analyzer.CallStack]{}
 	seen := make(map[*callgraph.Node]bool)
 	var visit func(n *callgraph.Node, edge *callgraph.Edge)
 
 	visit = func(n *callgraph.Node, edge *callgraph.Edge) {
-		var src *analyzer.IssueSource
+		var src *analyzer.CallStack
 		if edge != nil && edge.Caller != nil && edge.Site != nil {
 			position := fset.Position(edge.Site.Pos())
 			fn := edge.Caller.Func.String()
-			src = &analyzer.IssueSource{
+			src = &analyzer.CallStack{
 				File:     position.Filename,
 				Line:     position.Line,
 				Function: fn,
@@ -200,7 +200,7 @@ func (a *goSyscallAnalyser) buildCallStack(cg *callgraph.Graph, fset *token.File
 			visit(n, nil)
 		}
 	}
-	issuesSources := make(map[string]*analyzer.IssueSource)
+	issuesSources := make(map[string]*analyzer.CallStack)
 	for fn, stack := range sources {
 		source, _ := stack.Pop()
 		for !stack.IsEmpty() {

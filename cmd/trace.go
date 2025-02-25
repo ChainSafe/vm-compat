@@ -73,7 +73,7 @@ func TraceCaller(ctx *cli.Context) error {
 	return nil
 }
 
-func printCallStack(source *analyzer.IssueSource, str string) string {
+func printCallStack(source *analyzer.CallStack, str string) string {
 	fileInfo := fmt.Sprintf(
 		" \033[94m\033]8;;file://%s:%d\033\\%s:%d\033]8;;\033\\\033[0m",
 		source.AbsPath, source.Line, source.File, source.Line,

@@ -76,10 +76,16 @@ func (r *TextRenderer) Render(issues []*analyzer.Issue, output io.Writer) error 
 	for _, msg := range sortedMessages {
 		groupedIssue := groupedIssues[msg]
 		report.WriteString(fmt.Sprintf("%d. [%s] %s\n", issueCounter, groupedIssue[0].Severity, msg))
-		report.WriteString("   - Sources:")
+		if len(groupedIssue[0].Impact) > 0 {
+			report.WriteString(fmt.Sprintf("   - Impact: %s \n", groupedIssue[0].Impact))
+		}
+		if len(groupedIssue[0].Reference) > 0 {
+			report.WriteString(fmt.Sprintf("   - Referance: %s \n", groupedIssue[0].Reference))
+		}
+		report.WriteString("   - CallStack:")
 
 		for _, issue := range groupedIssue {
-			report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, issue.Sources, "")))
+			report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, issue.CallStack, "")))
 		}
 		issueCounter++
 	}
@@ -96,7 +102,7 @@ func (r *TextRenderer) Render(issues []*analyzer.Issue, output io.Writer) error 
 	return err
 }
 
-func buildCallStack(output io.Writer, source *analyzer.IssueSource, str string) string {
+func buildCallStack(output io.Writer, source *analyzer.CallStack, str string) string {
 	var fileInfo string
 	if output == os.Stdout {
 		fileInfo = fmt.Sprintf(
