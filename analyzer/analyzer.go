@@ -8,7 +8,7 @@ type Analyzer interface {
 	Analyze(path string, withTrace bool) ([]*Issue, error)
 
 	// TraceStack generates callstack for a function to debug
-	TraceStack(path string, function string) (*IssueSource, error)
+	TraceStack(path string, function string) (*CallStack, error)
 }
 
 // IssueSeverity represents the severity level of an issue.
@@ -21,32 +21,34 @@ const (
 
 // Issue represents a single issue found by the analyzer.
 type Issue struct {
-	Sources  *IssueSource  `json:"sources"`
-	Message  string        `json:"message"` // A description of the issue.
-	Severity IssueSeverity `json:"severity"`
+	CallStack *CallStack    `json:"callStack"`
+	Message   string        `json:"message"` // A description of the issue.
+	Severity  IssueSeverity `json:"severity"`
+	Impact    string        `json:"impact,omitempty"`
+	Reference string        `json:"reference,omitempty"`
 }
 
-// IssueSource represents a location in the code where the issue originates.
-type IssueSource struct {
-	File      string       `json:"file"`
-	Line      int          `json:"line"`                // The line number where the issue was found.
-	Function  string       `json:"function"`            // The function where the issue was found.
-	AbsPath   string       `json:"absPath"`             // The absolute file path.
-	CallStack *IssueSource `json:"callStack,omitempty"` // The trace of calls leading to this source.
+// CallStack represents a location in the code where the issue originates.
+type CallStack struct {
+	File      string     `json:"file"`
+	Line      int        `json:"line"`                // The line number where the issue was found.
+	Function  string     `json:"function"`            // The function where the issue was found.
+	AbsPath   string     `json:"absPath"`             // The absolute file path.
+	CallStack *CallStack `json:"callStack,omitempty"` // The trace of calls leading to this source.
 }
 
-// Copy creates a deep copy of the IssueSource.
-func (src *IssueSource) Copy() *IssueSource {
+// Copy creates a deep copy of the CallStack.
+func (src *CallStack) Copy() *CallStack {
 	if src == nil {
 		return nil
 	}
 	// Recursively copy the CallStack
-	var copiedCallStack *IssueSource
+	var copiedCallStack *CallStack
 	if src.CallStack != nil {
 		copiedCallStack = src.CallStack.Copy()
 	}
 
-	return &IssueSource{
+	return &CallStack{
 		File:      src.File,
 		Line:      src.Line,
 		Function:  src.Function,
@@ -56,7 +58,7 @@ func (src *IssueSource) Copy() *IssueSource {
 }
 
 // AddCallStack add a call stack to the stack et end
-func (src *IssueSource) AddCallStack(stack *IssueSource) {
+func (src *CallStack) AddCallStack(stack *CallStack) {
 	// Recursively copy the CallStack
 	if src.CallStack == nil {
 		src.CallStack = stack

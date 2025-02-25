@@ -44,8 +44,8 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 					source.CallStack = nil
 				}
 				issues = append(issues, &analyzer.Issue{
-					Severity: analyzer.IssueSeverityCritical,
-					Sources:  source,
+					Severity:  analyzer.IssueSeverityCritical,
+					CallStack: source,
 					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
 						instruction.OpcodeHex(), instruction.Funct()),
 				})
@@ -75,7 +75,7 @@ func (op *opcode) buildCallGraph(path string) (asmparser.CallGraph, error) {
 }
 
 // TraceStack generates callstack for a function to debug
-func (op *opcode) TraceStack(path string, function string) (*analyzer.IssueSource, error) {
+func (op *opcode) TraceStack(path string, function string) (*analyzer.CallStack, error) {
 	graph, err := op.buildCallGraph(path)
 	if err != nil {
 		return nil, err
