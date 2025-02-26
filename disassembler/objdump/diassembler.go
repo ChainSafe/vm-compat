@@ -65,11 +65,11 @@ func generateSourceAssembly(target string, goos, arch string) (string, error) {
 		return "", err
 	}
 
-	projectDir := filepath.Dir(absPath)
+	mainPackageDir := filepath.Dir(absPath)
 
 	//nolint:gosec
 	buildCmd := exec.Command("go", "build", "-o", tempFile, "./")
-	buildCmd.Dir = projectDir // Set the working directory to the main package
+	buildCmd.Dir = mainPackageDir // Set the working directory to the main package
 	buildCmd.Env = append(os.Environ(),
 		fmt.Sprintf("GOOS=%s", goos),
 		fmt.Sprintf("GOARCH=%s", arch),
