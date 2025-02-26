@@ -63,6 +63,10 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
+				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
+					continue
+				}
+
 				if !withTrace {
 					source.CallStack = nil
 				}

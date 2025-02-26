@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -57,4 +58,14 @@ func TraceAsmCaller(
 		return nil, fmt.Errorf("no trace found to root for the given function")
 	}
 	return src, nil
+}
+
+func ShouldIgnoreSource(callStack *analyzer.CallStack, functions []string) bool {
+	if callStack != nil {
+		if slices.Contains(functions, callStack.Function) {
+			return true
+		}
+		return ShouldIgnoreSource(callStack.CallStack, functions)
+	}
+	return false
 }
