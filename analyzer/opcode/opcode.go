@@ -40,6 +40,9 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
+				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
+					continue
+				}
 				if !withTrace {
 					source.CallStack = nil
 				}

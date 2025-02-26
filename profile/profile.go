@@ -16,12 +16,13 @@ type OpcodeInstruction struct {
 
 // VMProfile represents the configuration for a specific VM.
 type VMProfile struct {
-	VMName         string              `yaml:"vm"`
-	GOOS           string              `yaml:"goos"`
-	GOARCH         string              `yaml:"goarch"`
-	AllowedOpcodes []OpcodeInstruction `yaml:"allowed_opcodes"`
-	AllowedSycalls []int               `yaml:"allowed_syscalls"`
-	NOOPSyscalls   []int               `yaml:"noop_syscalls"`
+	VMName           string              `yaml:"vm"`
+	GOOS             string              `yaml:"goos"`
+	GOARCH           string              `yaml:"goarch"`
+	AllowedOpcodes   []OpcodeInstruction `yaml:"allowed_opcodes"`
+	AllowedSycalls   []int               `yaml:"allowed_syscalls"`
+	NOOPSyscalls     []int               `yaml:"noop_syscalls"`
+	IgnoredFunctions []string            `yaml:"ignored_functions"`
 }
 
 func (p *VMProfile) SetDefaults() {
