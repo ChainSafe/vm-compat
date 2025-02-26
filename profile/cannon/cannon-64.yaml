@@ -2,6 +2,9 @@ vm: Cannon
 goos: linux
 goarch: mips64
 ignored_functions:
+  - 'syscall.setrlimit'
+  - 'runtime.morestack'
+  - 'runtime.abort'
 
 allowed_opcodes:
   - opcode: '0x2'
