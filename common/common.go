@@ -9,7 +9,7 @@ import (
 
 // FindGoModuleRoot finds the Go module root directory by searching for `go.mod`
 func FindGoModuleRoot(target string) (string, error) {
-	dir := filepath.Dir(target)
+	dir := filepath.Clean(target)
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir, nil // Found go.mod, return this directory as module root
