@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/ChainSafe/vm-compat/common"
 	"github.com/ChainSafe/vm-compat/disassembler"
 )
 
@@ -66,18 +65,15 @@ func generateSourceAssembly(target string, goos, arch string) (string, error) {
 		return "", err
 	}
 
-	// Find the module root of the target file
-	modRoot, err := common.FindGoModuleRoot(absPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to find go module root: %w", err)
-	}
+	projectDir := filepath.Dir(absPath)
 
 	//nolint:gosec
-	buildCmd := exec.Command("go", "build", "-o", tempFile, absPath)
-	buildCmd.Dir = modRoot // Set the working directory to the module root
+	buildCmd := exec.Command("go", "build", "-o", tempFile, "./")
+	buildCmd.Dir = projectDir // Set the working directory to the main package
 	buildCmd.Env = append(os.Environ(),
 		fmt.Sprintf("GOOS=%s", goos),
 		fmt.Sprintf("GOARCH=%s", arch),
+		"GO111MODULE=off",
 	)
 	if arch == "mips" {
 		buildCmd.Env = append(buildCmd.Env, "GOMIPS=softfloat")
