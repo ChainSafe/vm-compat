@@ -36,7 +36,12 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
-				source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label(), endCondition)
+				source, err := common.TraceAsmCaller(
+					absPath,
+					callGraph,
+					segment.Label(),
+					common.ProgramEntrypoint(op.profile.GOARCH),
+				)
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
@@ -87,7 +92,7 @@ func (op *opcode) TraceStack(path string, function string) (*analyzer.CallStack,
 	if err != nil {
 		return nil, err
 	}
-	return common.TraceAsmCaller(absPath, graph, function, endCondition)
+	return common.TraceAsmCaller(absPath, graph, function, common.ProgramEntrypoint(op.profile.GOARCH))
 }
 func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 	return slices.ContainsFunc(op.profile.AllowedOpcodes, func(instr profile.OpcodeInstruction) bool {
@@ -101,11 +106,4 @@ func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 			return strings.EqualFold(s, funct)
 		})
 	})
-}
-
-func endCondition(function string) bool {
-	return function == "runtime.rt0_go" || // start point of a go program
-		function == "main.main" || // main
-		strings.Contains(function, ".init.") || // all init functions
-		strings.HasSuffix(function, ".init") // vars
 }
