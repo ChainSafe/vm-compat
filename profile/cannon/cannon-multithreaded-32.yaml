@@ -1,11 +1,15 @@
 vm: Cannon
 goos: linux
-goarch: mips64
+goarch: mips
 ignored_functions:
   - 'syscall.setrlimit'
   - 'runtime.morestack'
   - 'runtime.abort'
-
+  - 'runtime.exitThread'
+  - 'runtime.sigaltstack'
+  - 'runtime.rtsigprocmask'
+  - 'runtime.munmap'
+  - 'runtime.exit'
 allowed_opcodes:
   - opcode: '0x2'
     funct: []
@@ -157,3 +161,6 @@ noop_syscalls:
   - 4261
   - 4076
   - 4019
+  - 4215
+  - 4213
+  - 4140

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -59,19 +58,23 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if slices.Contains(a.profile.AllowedSycalls, syscall.Number) {
 					continue
 				}
-				source, err := common.TraceAsmCaller(absPath, callGraph, syscall.Segment.Label(), endCondition)
+				source, err := common.TraceAsmCaller(
+					absPath,
+					callGraph,
+					syscall.Segment.Label(),
+					common.ProgramEntrypoint(a.profile.GOARCH),
+				)
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
-					continue
-				}
-
 				if !withTrace {
 					source.CallStack = nil
 				}
 
 				severity := analyzer.IssueSeverityCritical
+				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
+					severity = analyzer.IssueSeverityWarning
+				}
 				message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscall.Number)
 				if slices.Contains(a.profile.NOOPSyscalls, syscall.Number) {
 					message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
@@ -121,12 +124,5 @@ func (a *asmSyscallAnalyser) TraceStack(path string, function string) (*analyzer
 	if err != nil {
 		return nil, err
 	}
-	return common.TraceAsmCaller(absPath, graph, function, endCondition)
-}
-
-func endCondition(function string) bool {
-	return function == "runtime.rt0_go" || // start point of a go program
-		function == "main.main" || // main
-		strings.Contains(function, ".init.") || // all init functions
-		strings.HasSuffix(function, ".init") // vars
+	return common.TraceAsmCaller(absPath, graph, function, common.ProgramEntrypoint(a.profile.GOARCH))
 }
