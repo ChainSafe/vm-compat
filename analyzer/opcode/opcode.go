@@ -36,22 +36,29 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
-				source, err := common.TraceAsmCaller(absPath, callGraph, segment.Label(), endCondition)
+				source, err := common.TraceAsmCaller(
+					absPath,
+					callGraph,
+					segment.Label(),
+					common.ProgramEntrypoint(op.profile.GOARCH),
+				)
 				if err != nil { // non-reachable portion ignored
-					continue
-				}
-				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
 					continue
 				}
 				if !withTrace {
 					source.CallStack = nil
 				}
-				issues = append(issues, &analyzer.Issue{
+
+				issue := &analyzer.Issue{
 					Severity:  analyzer.IssueSeverityCritical,
 					CallStack: source,
-					Message: fmt.Sprintf("Incompatible Opcode Detected: Opcode: %s, Funct: %s",
+					Message: fmt.Sprintf("Potential Incompatible Opcode Detected: Opcode: %s, Funct: %s",
 						instruction.OpcodeHex(), instruction.Funct()),
-				})
+				}
+				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
+					issue.Severity = analyzer.IssueSeverityWarning
+				}
+				issues = append(issues, issue)
 			}
 		}
 	}
@@ -87,7 +94,7 @@ func (op *opcode) TraceStack(path string, function string) (*analyzer.CallStack,
 	if err != nil {
 		return nil, err
 	}
-	return common.TraceAsmCaller(absPath, graph, function, endCondition)
+	return common.TraceAsmCaller(absPath, graph, function, common.ProgramEntrypoint(op.profile.GOARCH))
 }
 func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 	return slices.ContainsFunc(op.profile.AllowedOpcodes, func(instr profile.OpcodeInstruction) bool {
@@ -101,11 +108,4 @@ func (op *opcode) isAllowedOpcode(opcode, funct string) bool {
 			return strings.EqualFold(s, funct)
 		})
 	})
-}
-
-func endCondition(function string) bool {
-	return function == "runtime.rt0_go" || // start point of a go program
-		function == "main.main" || // main
-		strings.Contains(function, ".init.") || // all init functions
-		strings.HasSuffix(function, ".init") // vars
 }
