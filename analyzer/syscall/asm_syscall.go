@@ -3,13 +3,14 @@ package syscall
 
 import (
 	"fmt"
+	"path/filepath"
+	"slices"
+
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/asmparser/mips"
 	"github.com/ChainSafe/vm-compat/common"
 	"github.com/ChainSafe/vm-compat/profile"
-	"path/filepath"
-	"slices"
 )
 
 const (
