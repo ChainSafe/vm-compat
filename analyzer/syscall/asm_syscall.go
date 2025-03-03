@@ -66,15 +66,14 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
-					continue
-				}
-
 				if !withTrace {
 					source.CallStack = nil
 				}
 
 				severity := analyzer.IssueSeverityCritical
+				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
+					severity = analyzer.IssueSeverityWarning
+				}
 				message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscall.Number)
 				if slices.Contains(a.profile.NOOPSyscalls, syscall.Number) {
 					message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
