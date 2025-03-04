@@ -5,6 +5,7 @@ package e2etest
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -39,7 +40,7 @@ func runTest(t *testing.T, vmProfile string, cases map[string]testcase) {
 
 			if tc.isPassing {
 				for i := range issues {
-					assert.NotEqual(t, analyzer.IssueSeverityCritical, issues[i].Severity, "Found Critical issue")
+					assert.NotEqual(t, analyzer.IssueSeverityCritical, issues[i].Severity, fmt.Sprintf("Found Critical issue %v", issues[i]))
 				}
 			} else {
 				var criticalIssueFound bool
@@ -55,7 +56,7 @@ func runTest(t *testing.T, vmProfile string, cases map[string]testcase) {
 	}
 }
 
-func TestMips(t *testing.T) {
+func TestSinglethreadedMips(t *testing.T) {
 	cases := map[string]testcase{
 		"hello_world": {
 			path:      filepath.Join(testdataDir, "hello"),
@@ -68,10 +69,10 @@ func TestMips(t *testing.T) {
 			path: filepath.Join(testdataDir, "sys-getrandom"),
 		},
 	}
-	runTest(t, "../profile/cannon/cannon-32.yaml", cases)
+	runTest(t, "../profile/cannon/cannon-singlethreaded-32.yaml", cases)
 }
 
-func TestMips64(t *testing.T) {
+func TestMultithreadedMips(t *testing.T) {
 	cases := map[string]testcase{
 		"hello_world": {
 			path:      filepath.Join(testdataDir, "hello"),
@@ -84,5 +85,21 @@ func TestMips64(t *testing.T) {
 			path: filepath.Join(testdataDir, "sys-getrandom"),
 		},
 	}
-	runTest(t, "../profile/cannon/cannon-64.yaml", cases)
+	runTest(t, "../profile/cannon/cannon-multithreaded-32.yaml", cases)
+}
+
+func TestMultithreadedMips64(t *testing.T) {
+	cases := map[string]testcase{
+		"hello_world": {
+			path:      filepath.Join(testdataDir, "hello"),
+			isPassing: true,
+		},
+		"sys-clockgettime": {
+			path: filepath.Join(testdataDir, "sys-clockgettime"),
+		},
+		"sys-getrandom": {
+			path: filepath.Join(testdataDir, "sys-getrandom"),
+		},
+	}
+	runTest(t, "../profile/cannon/cannon-multithreaded-64.yaml", cases)
 }
