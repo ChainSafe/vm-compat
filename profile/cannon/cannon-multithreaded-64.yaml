@@ -5,6 +5,7 @@ ignored_functions:
   - 'syscall.setrlimit'
   - 'runtime.morestack'
   - 'runtime.abort'
+  - 'runtime.switchToCrashStack0'
 
 allowed_opcodes:
   - opcode: '0x2'
