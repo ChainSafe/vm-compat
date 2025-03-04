@@ -45,10 +45,6 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-				if !withTrace {
-					source.CallStack = nil
-				}
-
 				issue := &analyzer.Issue{
 					Severity:  analyzer.IssueSeverityCritical,
 					CallStack: source,
@@ -57,6 +53,9 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				}
 				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
 					issue.Severity = analyzer.IssueSeverityWarning
+				}
+				if !withTrace {
+					source.CallStack = nil
 				}
 				issues = append(issues, issue)
 			}
