@@ -67,9 +67,6 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-				if !withTrace {
-					source.CallStack = nil
-				}
 
 				severity := analyzer.IssueSeverityCritical
 				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
@@ -80,7 +77,9 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 					message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
 					severity = analyzer.IssueSeverityWarning
 				}
-
+				if !withTrace {
+					source.CallStack = nil
+				}
 				issues = append(issues, &analyzer.Issue{
 					Severity:  severity,
 					Message:   message,

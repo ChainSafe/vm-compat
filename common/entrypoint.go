@@ -13,14 +13,14 @@ func ProgramEntrypoint(arch string) func(function string) bool {
 				function == "runtime.schedinit" ||
 				function == "runtime.newproc" ||
 				function == "runtime.mstart" ||
-				function == "main.main" || // main
+				strings.Contains(function, "main.main") || // main and closures or anonymous functions
 				strings.Contains(function, ".init.") || // all init functions
 				strings.HasSuffix(function, ".init") // vars
 		}
 	case "mips64":
 		return func(function string) bool {
 			return function == "runtime.rt0_go" || // start point of a go program
-				function == "main.main" || // main
+				strings.Contains(function, "main.main") || // main and closures or anonymous functions
 				strings.Contains(function, ".init.") || // all init functions
 				strings.HasSuffix(function, ".init") // vars
 		}
