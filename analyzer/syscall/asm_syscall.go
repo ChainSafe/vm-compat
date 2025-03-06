@@ -87,7 +87,6 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 					Impact:    potentialImpactMsg,
 					Reference: analyzerWorkingPrincipalURL,
 				}
-				issues = append(issues, issue)
 				issue.PopulateHash()
 				issues = append(issues, issue)
 			}
