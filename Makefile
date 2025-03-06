@@ -2,7 +2,7 @@ GOLANGCI := $(GOPATH)/bin/golangci-lint
 
 .PHONY: analyzer
 analyzer:
-	go build -o ./bin/analyzer ./main.go
+	go build -o ./bin/vm-compact ./main.go
 
 .PHONY: get
 get:
@@ -23,3 +23,8 @@ lint: get_lint
 test:
 	@echo "  >  \033[32mRunning sprinter-api tests...\033[0m "
 	go test -v ./...
+
+# Run e2e tests
+.PHONY: e2e-test
+e2e-test: 
+	go test ./e2e_tests -tags=integration -v
