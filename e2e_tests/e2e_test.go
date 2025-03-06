@@ -68,6 +68,10 @@ func TestSinglethreadedMips(t *testing.T) {
 		"sys-getrandom": {
 			path: filepath.Join(testdataDir, "sys-getrandom"),
 		},
+		"sys-statx": {
+			path:      filepath.Join(testdataDir, "sys-statx"),
+			isPassing: true,
+		},
 	}
 	runTest(t, "../profile/cannon/cannon-singlethreaded-32.yaml", cases)
 }
@@ -84,6 +88,9 @@ func TestMultithreadedMips(t *testing.T) {
 		"sys-getrandom": {
 			path: filepath.Join(testdataDir, "sys-getrandom"),
 		},
+		"sys-statx": {
+			path: filepath.Join(testdataDir, "sys-statx"),
+		},
 	}
 	runTest(t, "../profile/cannon/cannon-multithreaded-32.yaml", cases)
 }
@@ -99,6 +106,9 @@ func TestMultithreadedMips64(t *testing.T) {
 		},
 		"sys-getrandom": {
 			path: filepath.Join(testdataDir, "sys-getrandom"),
+		},
+		"sys-statx": {
+			path: filepath.Join(testdataDir, "sys-statx"),
 		},
 	}
 	runTest(t, "../profile/cannon/cannon-multithreaded-64.yaml", cases)
