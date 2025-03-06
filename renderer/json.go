@@ -15,7 +15,8 @@ func NewJSONRenderer() Renderer {
 	return &JSONRenderer{}
 }
 
-func (r *JSONRenderer) Render(issues []*analyzer.Issue, output io.Writer) error {
+func (r *JSONRenderer) Render(issues analyzer.Issues, output io.Writer) error {
+	issues.Sort()
 	return json.NewEncoder(output).Encode(issues)
 }
 

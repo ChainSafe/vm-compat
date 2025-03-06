@@ -57,6 +57,7 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				if !withTrace {
 					source.CallStack = nil
 				}
+				issue.PopulateHash()
 				issues = append(issues, issue)
 			}
 		}

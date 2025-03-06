@@ -1,6 +1,14 @@
 // Package analyzer provides an interface for analyzing source code for compatibility issues.
 package analyzer
 
+import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"sort"
+	"strings"
+)
+
 // Analyzer represents the interface for the analyzer.
 type Analyzer interface {
 	// Analyze analyzes the provided source code and returns any issues found.
@@ -26,6 +34,12 @@ type Issue struct {
 	Severity  IssueSeverity `json:"severity"`
 	Impact    string        `json:"impact,omitempty"`
 	Reference string        `json:"reference,omitempty"`
+	Hash      string        `json:"hash"`
+}
+
+func (i *Issue) PopulateHash() {
+	hash := md5.Sum([]byte(fmt.Sprintf("%s:%s", i.Message, i.CallStack.Hash())))
+	i.Hash = hex.EncodeToString(hash[:])
 }
 
 // CallStack represents a location in the code where the issue originates.
@@ -35,6 +49,15 @@ type CallStack struct {
 	Function  string     `json:"function"`            // The function where the issue was found.
 	AbsPath   string     `json:"absPath"`             // The absolute file path.
 	CallStack *CallStack `json:"callStack,omitempty"` // The trace of calls leading to this source.
+}
+
+func (src *CallStack) Hash() string {
+	sub := src.Function
+	if src.CallStack != nil {
+		sub = fmt.Sprintf("%s:%s", sub, src.CallStack.Hash())
+	}
+	hash := md5.Sum([]byte(sub))
+	return hex.EncodeToString(hash[:])
 }
 
 // Copy creates a deep copy of the CallStack.
@@ -65,4 +88,15 @@ func (src *CallStack) AddCallStack(stack *CallStack) {
 		return
 	}
 	src.CallStack.AddCallStack(stack)
+}
+
+type Issues []*Issue
+
+func (issues Issues) Sort() {
+	sort.Slice(issues, func(i, j int) bool {
+		if issues[i].Severity != issues[j].Severity {
+			return issues[i].Severity < issues[j].Severity
+		}
+		return strings.Compare(issues[i].Hash, issues[j].Hash) < 0
+	})
 }
