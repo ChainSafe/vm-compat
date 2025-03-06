@@ -1,6 +1,11 @@
 // Package analyzer provides an interface for analyzing source code for compatibility issues.
 package analyzer
 
+import (
+	"crypto/sha256"
+	"encoding/hex"
+)
+
 // Analyzer represents the interface for the analyzer.
 type Analyzer interface {
 	// Analyze analyzes the provided source code and returns any issues found.
@@ -26,6 +31,17 @@ type Issue struct {
 	Severity  IssueSeverity `json:"severity"`
 	Impact    string        `json:"impact,omitempty"`
 	Reference string        `json:"reference,omitempty"`
+	Hash      string        `json:"hash,omitempty"`
+}
+
+func (i *Issue) CalculateHash() {
+	hashString := i.Message
+	if i.CallStack != nil {
+		hashString = hashString + "::" + i.CallStack.getHashString()
+	}
+	h := sha256.New()
+	h.Write([]byte(hashString))
+	i.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
 // CallStack represents a location in the code where the issue originates.
@@ -35,6 +51,14 @@ type CallStack struct {
 	Function  string     `json:"function"`            // The function where the issue was found.
 	AbsPath   string     `json:"absPath"`             // The absolute file path.
 	CallStack *CallStack `json:"callStack,omitempty"` // The trace of calls leading to this source.
+}
+
+func (c *CallStack) getHashString() string {
+	hashString := c.Function
+	if c.CallStack != nil {
+		hashString = hashString + "<-" + c.CallStack.getHashString()
+	}
+	return hashString
 }
 
 // Copy creates a deep copy of the CallStack.

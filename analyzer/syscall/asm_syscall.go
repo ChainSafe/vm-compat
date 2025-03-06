@@ -80,13 +80,16 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if !withTrace {
 					source.CallStack = nil
 				}
-				issues = append(issues, &analyzer.Issue{
+
+				issue := &analyzer.Issue{
 					Severity:  severity,
 					Message:   message,
 					CallStack: source,
 					Impact:    potentialImpactMsg,
 					Reference: analyzerWorkingPrincipalURL,
-				})
+				}
+				issue.CalculateHash()
+				issues = append(issues, issue)
 			}
 		}
 	}
