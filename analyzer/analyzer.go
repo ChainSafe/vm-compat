@@ -53,10 +53,10 @@ type CallStack struct {
 	CallStack *CallStack `json:"callStack,omitempty"` // The trace of calls leading to this source.
 }
 
-func (c *CallStack) getHashString() string {
-	hashString := c.Function
-	if c.CallStack != nil {
-		hashString = hashString + "<-" + c.CallStack.getHashString()
+func (src *CallStack) getHashString() string {
+	hashString := src.Function
+	if src.CallStack != nil {
+		hashString = hashString + "<-" + src.CallStack.getHashString()
 	}
 	return hashString
 }
