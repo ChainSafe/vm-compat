@@ -58,7 +58,7 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if slices.Contains(a.profile.AllowedSycalls, syscall.Number) {
 					continue
 				}
-				source, err := common.TraceAsmCaller(
+				sources, err := common.TraceAllAsmCaller(
 					absPath,
 					callGraph,
 					syscall.Segment.Label(),
@@ -67,26 +67,27 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-
-				severity := analyzer.IssueSeverityCritical
-				if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
-					severity = analyzer.IssueSeverityWarning
+				for _, source := range sources {
+					severity := analyzer.IssueSeverityCritical
+					if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
+						severity = analyzer.IssueSeverityWarning
+					}
+					message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscall.Number)
+					if slices.Contains(a.profile.NOOPSyscalls, syscall.Number) {
+						message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
+						severity = analyzer.IssueSeverityWarning
+					}
+					if !withTrace {
+						source.CallStack = nil
+					}
+					issues = append(issues, &analyzer.Issue{
+						Severity:  severity,
+						Message:   message,
+						CallStack: source,
+						Impact:    potentialImpactMsg,
+						Reference: analyzerWorkingPrincipalURL,
+					})
 				}
-				message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscall.Number)
-				if slices.Contains(a.profile.NOOPSyscalls, syscall.Number) {
-					message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
-					severity = analyzer.IssueSeverityWarning
-				}
-				if !withTrace {
-					source.CallStack = nil
-				}
-				issues = append(issues, &analyzer.Issue{
-					Severity:  severity,
-					Message:   message,
-					CallStack: source,
-					Impact:    potentialImpactMsg,
-					Reference: analyzerWorkingPrincipalURL,
-				})
 			}
 		}
 	}
