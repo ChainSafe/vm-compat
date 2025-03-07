@@ -39,7 +39,7 @@ type Issue struct {
 
 func (i *Issue) PopulateHash() {
 	h := sha256.New()
-	_, _ = fmt.Fprintf(h, "%s:%s", i.Message, i.CallStack.Hash())
+	_, _ = fmt.Fprintf(h, "%s:%s", i.Message, i.CallStack.Trace())
 	i.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
@@ -52,14 +52,12 @@ type CallStack struct {
 	CallStack *CallStack `json:"callStack,omitempty"` // The trace of calls leading to this source.
 }
 
-func (src *CallStack) Hash() string {
+func (src *CallStack) Trace() string {
 	sub := src.Function
 	if src.CallStack != nil {
-		sub = fmt.Sprintf("%s:%s", sub, src.CallStack.Hash())
+		sub = fmt.Sprintf("%s:%s", sub, src.CallStack.Trace())
 	}
-	h := sha256.New()
-	h.Write([]byte(sub))
-	return hex.EncodeToString(h.Sum(nil))
+	return sub
 }
 
 // Copy creates a deep copy of the CallStack.
@@ -94,11 +92,12 @@ func (src *CallStack) AddCallStack(stack *CallStack) {
 
 type Issues []*Issue
 
-func (issues Issues) Sort() {
+func SortIssues(issues []*Issue) []*Issue {
 	sort.Slice(issues, func(i, j int) bool {
 		if issues[i].Severity != issues[j].Severity {
 			return issues[i].Severity < issues[j].Severity
 		}
 		return strings.Compare(issues[i].Hash, issues[j].Hash) < 0
 	})
+	return issues
 }

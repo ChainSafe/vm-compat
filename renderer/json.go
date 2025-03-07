@@ -16,8 +16,7 @@ func NewJSONRenderer() Renderer {
 }
 
 func (r *JSONRenderer) Render(issues analyzer.Issues, output io.Writer) error {
-	issues.Sort()
-	return json.NewEncoder(output).Encode(issues)
+	return json.NewEncoder(output).Encode(analyzer.SortIssues(issues))
 }
 
 func (r *JSONRenderer) Format() string {
