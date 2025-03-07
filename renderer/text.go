@@ -24,7 +24,7 @@ func NewTextRenderer(profile *profile.VMProfile) Renderer {
 }
 
 // Render formats and writes the analysis report to the command line.
-func (r *TextRenderer) Render(issues analyzer.Issues, output io.Writer) error {
+func (r *TextRenderer) Render(issues []*analyzer.Issue, output io.Writer) error {
 	if len(issues) == 0 {
 		return nil
 	}
