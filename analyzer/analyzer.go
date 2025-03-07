@@ -90,6 +90,7 @@ func (src *CallStack) AddCallStack(stack *CallStack) {
 	src.CallStack.AddCallStack(stack)
 }
 
+// SortIssues sorts the issues by severity and hash.
 func SortIssues(issues []*Issue) []*Issue {
 	sort.Slice(issues, func(i, j int) bool {
 		if issues[i].Severity != issues[j].Severity {
