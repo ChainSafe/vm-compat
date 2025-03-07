@@ -39,7 +39,7 @@ type Issue struct {
 
 func (i *Issue) PopulateHash() {
 	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("%s:%s", i.Message, i.CallStack.Hash())))
+	_, _ = fmt.Fprintf(h, "%s:%s", i.Message, i.CallStack.Hash())
 	i.Hash = hex.EncodeToString(h.Sum(nil))
 }
 

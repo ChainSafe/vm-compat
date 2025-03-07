@@ -1,3 +1,4 @@
+// Package comparer provides a way to compare current issues with the baseline report.
 package comparer
 
 import (
@@ -26,11 +27,11 @@ func (r *jsonComparer) CompareReport(issues []*analyzer.Issue, reader io.Reader)
 	baseLineIssues := make([]*analyzer.Issue, 0)
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, fmt.Errorf("error reading data while decoding issues: %v", err)
+		return nil, fmt.Errorf("error reading data while decoding issues: %w", err)
 	}
 	err = json.Unmarshal(data, &baseLineIssues)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding issues: %v", err)
+		return nil, fmt.Errorf("error decoding issues: %w", err)
 	}
 
 	sort.Slice(issues, func(i, j int) bool {
