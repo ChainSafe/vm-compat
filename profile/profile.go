@@ -34,6 +34,7 @@ func (p *VMProfile) SetDefaults() {
 	}
 }
 
+// LoadProfile loads a VM profile for predefined profiles.
 func LoadProfile(name string) (*VMProfile, error) {
 	vmProfile, ok := vmProfileConfigs[name]
 	if !ok {
@@ -42,7 +43,7 @@ func LoadProfile(name string) (*VMProfile, error) {
 	return vmProfile, nil
 }
 
-// LoadProfile loads a VM profile from a JSON file.
+// LoadProfileFromConfig loads a VM profile from a yaml file.
 func LoadProfileFromConfig(filename string) (*VMProfile, error) {
 	path, err := filepath.Abs(filename)
 	if err != nil {
