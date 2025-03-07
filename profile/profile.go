@@ -20,7 +20,7 @@ type VMProfile struct {
 	GOOS             string              `yaml:"goos"`
 	GOARCH           string              `yaml:"goarch"`
 	AllowedOpcodes   []OpcodeInstruction `yaml:"allowed_opcodes"`
-	AllowedSycalls   []int               `yaml:"allowed_syscalls"`
+	AllowedSyscalls  []int               `yaml:"allowed_syscalls"`
 	NOOPSyscalls     []int               `yaml:"noop_syscalls"`
 	IgnoredFunctions []string            `yaml:"ignored_functions"`
 }
@@ -34,8 +34,16 @@ func (p *VMProfile) SetDefaults() {
 	}
 }
 
+func LoadProfile(name string) (*VMProfile, error) {
+	vmProfile, ok := vmProfileConfigs[name]
+	if !ok {
+		return nil, fmt.Errorf("invalid profile")
+	}
+	return vmProfile, nil
+}
+
 // LoadProfile loads a VM profile from a JSON file.
-func LoadProfile(filename string) (*VMProfile, error) {
+func LoadProfileFromConfig(filename string) (*VMProfile, error) {
 	path, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path of profile: %w", err)

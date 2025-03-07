@@ -19,9 +19,12 @@ import (
 
 var (
 	VMProfileFlag = &cli.StringFlag{
-		Name:     "vm-profile",
-		Usage:    "Path to the VM profile config file",
-		Required: true,
+		Name:  "vm-profile",
+		Usage: "vm profile against which compatibity should be checked. Options: cannon-singlethreaded-32, cannon-multithreaded-32, cannon-multithreaded-64",
+	}
+	VMProfileConfigFlag = &cli.StringFlag{
+		Name:  "vm-profile-config",
+		Usage: "Path to the VM profile config file",
 	}
 	AnalysisTypeFlag = &cli.StringFlag{
 		Name:     "analysis-type",
@@ -60,6 +63,7 @@ func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
 		Action:      action,
 		Flags: []cli.Flag{
 			VMProfileFlag,
+			VMProfileConfigFlag,
 			AnalysisTypeFlag,
 			DisassemblyOutputFlag,
 			FormatFlag,
@@ -72,8 +76,16 @@ func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
 var AnalyzeCommand = CreateAnalyzeCommand(AnalyzeCompatibility)
 
 func AnalyzeCompatibility(ctx *cli.Context) error {
-	vmProfile := ctx.Path(VMProfileFlag.Name)
-	prof, err := profile.LoadProfile(vmProfile)
+	var vmProfile *profile.VMProfile
+	var err error
+	prof := ctx.Path(VMProfileFlag.Name)
+	if prof != "" {
+		vmProfile, err = profile.LoadProfile(prof)
+	} else {
+		profPath := ctx.Path(VMProfileConfigFlag.Name)
+		vmProfile, err = profile.LoadProfileFromConfig(profPath)
+	}
+
 	if err != nil {
 		return fmt.Errorf("error loading profile: %w", err)
 	}
@@ -85,17 +97,17 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 	analysisType := ctx.String(AnalysisTypeFlag.Name)
 	withTrace := ctx.Bool(TraceFlag.Name)
 
-	disassemblyPath, err = disassemble(prof, source, disassemblyPath)
+	disassemblyPath, err = disassemble(vmProfile, source, disassemblyPath)
 	if err != nil {
 		return fmt.Errorf("error disassembling the file: %w", err)
 	}
 
-	issues, err := analyze(prof, disassemblyPath, analysisType, withTrace)
+	issues, err := analyze(vmProfile, disassemblyPath, analysisType, withTrace)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
 
-	if err := writeReport(issues, format, reportOutputPath, prof); err != nil {
+	if err := writeReport(issues, format, reportOutputPath, vmProfile); err != nil {
 		return fmt.Errorf("unable to write report: %w", err)
 	}
 	return nil

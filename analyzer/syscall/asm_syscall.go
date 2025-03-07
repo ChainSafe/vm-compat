@@ -55,7 +55,7 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 			}
 			for _, syscall := range syscalls {
 				// Categorize syscall
-				if slices.Contains(a.profile.AllowedSycalls, syscall.Number) {
+				if slices.Contains(a.profile.AllowedSyscalls, syscall.Number) {
 					continue
 				}
 				source, err := common.TraceAsmCaller(
