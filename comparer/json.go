@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sort"
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 )
@@ -34,19 +33,8 @@ func (r *jsonComparer) CompareReport(issues []*analyzer.Issue, reader io.Reader)
 		return nil, fmt.Errorf("error decoding issues: %w", err)
 	}
 
-	sort.Slice(issues, func(i, j int) bool {
-		if issues[i].Severity != issues[j].Severity {
-			return issues[i].Severity < issues[j].Severity
-		}
-		return issues[i].Hash < issues[j].Hash
-	})
-
-	sort.Slice(baseLineIssues, func(i, j int) bool {
-		if issues[i].Severity != issues[j].Severity {
-			return issues[i].Severity < issues[j].Severity
-		}
-		return issues[i].Hash < issues[j].Hash
-	})
+	issues = analyzer.SortIssues(issues)
+	baseLineIssues = analyzer.SortIssues(baseLineIssues)
 
 	newIssues := make([]*analyzer.Issue, 0)
 	for i, newIssue := range issues {

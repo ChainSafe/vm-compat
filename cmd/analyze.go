@@ -57,12 +57,6 @@ var (
 		Usage:    "Path to the baseline report",
 		Required: false,
 	}
-
-	CompareReportFlag = &cli.BoolFlag{
-		Name:     "compare-report",
-		Usage:    "compare the current report with the baseline report",
-		Required: false,
-	}
 )
 
 func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
@@ -78,7 +72,6 @@ func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
 			FormatFlag,
 			ReportOutputPathFlag,
 			TraceFlag,
-			CompareReportFlag,
 			BaselineReport,
 		},
 	}
@@ -99,7 +92,6 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 	reportOutputPath := ctx.Path(ReportOutputPathFlag.Name)
 	analysisType := ctx.String(AnalysisTypeFlag.Name)
 	withTrace := ctx.Bool(TraceFlag.Name)
-	withCompareReport := ctx.Bool(CompareReportFlag.Name)
 	baselineReport := ctx.Path(BaselineReport.Name)
 
 	disassemblyPath, err = disassemble(prof, source, disassemblyPath)
@@ -112,10 +104,7 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
 
-	if withCompareReport {
-		if baselineReport == "" {
-			return fmt.Errorf("baseline report path is required for comparison")
-		}
+	if baselineReport != "" {
 		err = compareReport(issues, format, reportOutputPath, prof, baselineReport)
 		if err != nil {
 			return fmt.Errorf("error comparing reports: %w", err)
