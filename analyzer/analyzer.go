@@ -37,6 +37,55 @@ type Issue struct {
 	Hash      string        `json:"hash"`
 }
 
+// Opt is a functional option for configuring an Issue.
+type Opt func(*Issue)
+
+// WithImpact sets the impact of the issue.
+func WithImpact(impact string) Opt {
+	return func(i *Issue) {
+		i.Impact = impact
+	}
+}
+
+// WithReference sets the reference for the issue.
+func WithReference(reference string) Opt {
+	return func(i *Issue) {
+		i.Reference = reference
+	}
+}
+
+// WithCallStack sets the call stack for the issue.
+func WithCallStack(callStack *CallStack) Opt {
+	return func(i *Issue) {
+		i.CallStack = callStack
+	}
+}
+
+// WithSeverity sets the severity for the issue.
+func WithSeverity(severity IssueSeverity) Opt {
+	return func(i *Issue) {
+		i.Severity = severity
+	}
+}
+
+// WithMessage sets the message for the issue.
+func WithMessage(message string) Opt {
+	return func(i *Issue) {
+		i.Message = message
+	}
+}
+
+// NewIssue creates a new issue with the provided severity, message, and source.
+func NewIssue(opts ...Opt) *Issue {
+	issue := new(Issue)
+	for _, opt := range opts {
+		opt(issue)
+	}
+	issue.PopulateHash()
+	return issue
+}
+
+// PopulateHash generates a hash for the issue and populates it into the issue
 func (i *Issue) PopulateHash() {
 	h := sha256.New()
 	_, _ = fmt.Fprintf(h, "%s:%s", i.Message, i.CallStack.Trace())

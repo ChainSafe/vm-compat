@@ -63,13 +63,14 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 			message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscll.num)
 		}
 
-		issue := &analyzer.Issue{
-			Severity:  severity,
-			CallStack: stackTrace,
-			Message:   message,
-		}
-		issue.PopulateHash()
-		issues = append(issues, issue)
+		issues = append(
+			issues,
+			analyzer.NewIssue(
+				analyzer.WithSeverity(severity),
+				analyzer.WithCallStack(stackTrace),
+				analyzer.WithMessage(message),
+			),
+		)
 	}
 
 	return issues, nil
