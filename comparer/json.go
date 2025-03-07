@@ -33,12 +33,14 @@ func (r *jsonComparer) CompareReport(issues []*analyzer.Issue, reader io.Reader)
 		return nil, fmt.Errorf("error decoding issues: %w", err)
 	}
 
-	issues = analyzer.SortIssues(issues)
-	baseLineIssues = analyzer.SortIssues(baseLineIssues)
+	baselineIssuesMap := make(map[string]*analyzer.Issue)
+	for _, issue := range baseLineIssues {
+		baselineIssuesMap[issue.Hash] = issue
+	}
 
 	newIssues := make([]*analyzer.Issue, 0)
-	for i, newIssue := range issues {
-		if i >= len(baseLineIssues) || newIssue.Hash != baseLineIssues[i].Hash {
+	for _, newIssue := range issues {
+		if _, ok := baselineIssuesMap[newIssue.Hash]; !ok {
 			newIssues = append(newIssues, newIssue)
 		}
 	}
