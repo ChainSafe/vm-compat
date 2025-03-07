@@ -60,7 +60,6 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 					}
 					issues = append(issues, issue)
 				}
-
 			}
 		}
 	}
