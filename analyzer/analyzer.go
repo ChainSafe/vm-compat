@@ -2,7 +2,7 @@
 package analyzer
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -38,8 +38,9 @@ type Issue struct {
 }
 
 func (i *Issue) PopulateHash() {
-	hash := md5.Sum([]byte(fmt.Sprintf("%s:%s", i.Message, i.CallStack.Hash())))
-	i.Hash = hex.EncodeToString(hash[:])
+	h := sha256.New()
+	h.Write([]byte(fmt.Sprintf("%s:%s", i.Message, i.CallStack.Hash())))
+	i.Hash = hex.EncodeToString(h.Sum(nil))
 }
 
 // CallStack represents a location in the code where the issue originates.
@@ -56,8 +57,9 @@ func (src *CallStack) Hash() string {
 	if src.CallStack != nil {
 		sub = fmt.Sprintf("%s:%s", sub, src.CallStack.Hash())
 	}
-	hash := md5.Sum([]byte(sub))
-	return hex.EncodeToString(hash[:])
+	h := sha256.New()
+	h.Write([]byte(sub))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // Copy creates a deep copy of the CallStack.
