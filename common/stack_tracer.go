@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
@@ -91,20 +92,31 @@ func TraceAllAsmCaller(
 		seen[segment] = true
 		currentStack.Push(segment)
 
-		if len(sources) >= 10 {
-			return
-		}
-
 		if endCond(segment.Label()) {
 			sources = append(sources, currentStack.Copy())
 		} else {
-			for _, seg := range graph.ParentsOf(segment) {
+			parents := graph.ParentsOf(segment)
+			// sort the parents for consistent output
+			slices.SortFunc(parents, func(a, b asmparser.Segment) int {
+				if a.Address() > b.Address() {
+					return 1
+				} else if a.Address() < b.Address() {
+					return -1
+				}
+				return 0
+			})
+
+			for _, seg := range parents {
 				visit(seg)
 			}
 		}
 
 		currentStack.Pop()
-		seen[segment] = false
+		// We don't want to revisit the runtime and internal packages as the number of paths can be up to billions.
+		if !strings.Contains(segment.Label(), "runtime") &&
+			strings.Contains(segment.Label(), "internal") {
+			seen[segment] = false
+		}
 	}
 
 	visit(segment)
