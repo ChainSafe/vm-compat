@@ -8,6 +8,7 @@ import (
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/analyzer/opcode"
 	"github.com/ChainSafe/vm-compat/analyzer/syscall"
+	"github.com/ChainSafe/vm-compat/comparer"
 	"github.com/ChainSafe/vm-compat/disassembler"
 	"github.com/ChainSafe/vm-compat/disassembler/manager"
 	"github.com/ChainSafe/vm-compat/profile"
@@ -53,6 +54,12 @@ var (
 		Required: false,
 		Value:    false,
 	}
+
+	BaselineReport = &cli.StringFlag{
+		Name:     "baseline-report",
+		Usage:    "Path to the baseline report",
+		Required: false,
+	}
 )
 
 func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
@@ -69,6 +76,7 @@ func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
 			FormatFlag,
 			ReportOutputPathFlag,
 			TraceFlag,
+			BaselineReport,
 		},
 	}
 }
@@ -96,6 +104,7 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 	reportOutputPath := ctx.Path(ReportOutputPathFlag.Name)
 	analysisType := ctx.String(AnalysisTypeFlag.Name)
 	withTrace := ctx.Bool(TraceFlag.Name)
+	baselineReport := ctx.Path(BaselineReport.Name)
 
 	disassemblyPath, err = disassemble(vmProfile, source, disassemblyPath)
 	if err != nil {
@@ -105,6 +114,14 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 	issues, err := analyze(vmProfile, disassemblyPath, analysisType, withTrace)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
+	}
+
+	if baselineReport != "" {
+		err = compareReport(issues, format, reportOutputPath, vmProfile, baselineReport)
+		if err != nil {
+			return fmt.Errorf("error comparing reports: %w", err)
+		}
+		return nil
 	}
 
 	if err := writeReport(issues, format, reportOutputPath, vmProfile); err != nil {
@@ -179,4 +196,26 @@ func writeReport(issues []*analyzer.Issue, format, outputPath string, prof *prof
 	}
 
 	return rendererInstance.Render(issues, output)
+}
+
+func compareReport(issues []*analyzer.Issue, format, outputPath string, prof *profile.VMProfile, baselineReport string) error {
+	absPath, err := filepath.Abs(baselineReport)
+	if err != nil {
+		return fmt.Errorf("error determining absolute path of baseline report: %w", err)
+	}
+
+	baselineIssuesFile, err := os.OpenFile(absPath, os.O_RDONLY, 0600)
+	if err != nil {
+		return fmt.Errorf("error loading baseline report: %w", err)
+	}
+	defer func() {
+		_ = baselineIssuesFile.Close()
+	}()
+
+	issues, err = comparer.NewJSONComparer().CompareReport(issues, baselineIssuesFile)
+	if err != nil {
+		return fmt.Errorf("error comparing reports: %w", err)
+	}
+
+	return writeReport(issues, format, outputPath, prof)
 }

@@ -45,19 +45,23 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-				issue := &analyzer.Issue{
-					Severity:  analyzer.IssueSeverityCritical,
-					CallStack: source,
-					Message: fmt.Sprintf("Potential Incompatible Opcode Detected: Opcode: %s, Funct: %s",
-						instruction.OpcodeHex(), instruction.Funct()),
+
+				opts := []analyzer.Opt{
+					analyzer.WithSeverity(analyzer.IssueSeverityCritical),
+					analyzer.WithCallStack(source),
+					analyzer.WithMessage(
+						fmt.Sprintf("Potential Incompatible Opcode Detected: Opcode: %s, Funct: %s",
+							instruction.OpcodeHex(), instruction.Funct()),
+					),
 				}
 				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
-					issue.Severity = analyzer.IssueSeverityWarning
+					opts = append(opts, analyzer.WithSeverity(analyzer.IssueSeverityWarning))
 				}
 				if !withTrace {
 					source.CallStack = nil
 				}
-				issues = append(issues, issue)
+
+				issues = append(issues, analyzer.NewIssue(opts...))
 			}
 		}
 	}
