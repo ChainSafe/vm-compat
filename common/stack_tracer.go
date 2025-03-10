@@ -92,10 +92,11 @@ func TraceAllAsmCaller(
 		seen[segment] = true
 		currentStack.Push(segment)
 
-		if endCond(segment.Label()) {
+		parents := graph.ParentsOf(segment)
+
+		if endCond(segment.Label()) && len(parents) == 0 {
 			sources = append(sources, currentStack.Copy())
 		} else {
-			parents := graph.ParentsOf(segment)
 			// sort the parents for consistent output
 			slices.SortFunc(parents, func(a, b asmparser.Segment) int {
 				if a.Address() > b.Address() {

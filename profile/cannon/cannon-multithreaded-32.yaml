@@ -10,6 +10,7 @@ ignored_functions:
   - 'runtime.rtsigprocmask'
   - 'runtime.munmap'
   - 'runtime.exit'
+  - 'runtime.sysFaultOS'
 allowed_opcodes:
   - opcode: '0x2'
     funct: []
