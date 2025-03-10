@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -9,6 +10,10 @@ import (
 	"github.com/ChainSafe/vm-compat/analyzer"
 	"github.com/ChainSafe/vm-compat/asmparser"
 	"github.com/ChainSafe/vm-compat/common/lifo"
+)
+
+var (
+	stdPkgs, _ = getStandardPackages()
 )
 
 // TraceAsmCaller correctly tracks function calls in the execution stack.
@@ -94,7 +99,7 @@ func TraceAllAsmCaller(
 
 		parents := graph.ParentsOf(segment)
 
-		if endCond(segment.Label()) && len(parents) == 0 {
+		if endCond(segment.Label()) {
 			sources = append(sources, currentStack.Copy())
 		} else {
 			// sort the parents for consistent output
@@ -113,9 +118,10 @@ func TraceAllAsmCaller(
 		}
 
 		currentStack.Pop()
-		// We don't want to revisit the runtime and internal packages as the number of paths can be up to billions.
-		if !strings.Contains(segment.Label(), "runtime") &&
-			strings.Contains(segment.Label(), "internal") {
+
+		// We don't want to revisit the sdk packages as the number of paths can be up to billions.
+		pkg := strings.Split(segment.Label(), ".")[0]
+		if !stdPkgs[pkg] {
 			seen[segment] = false
 		}
 	}
@@ -149,6 +155,23 @@ func TraceAllAsmCaller(
 	}
 
 	return traces, nil
+}
+
+// getStandardPackages fetches all standard library packages and stores them in a map for fast lookup.
+func getStandardPackages() (map[string]bool, error) {
+	cmd := exec.Command("go", "list", "std")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	stdPackages := make(map[string]bool)
+	for _, pkg := range strings.Split(string(output), "\n") {
+		if pkg != "" {
+			stdPackages[pkg] = true
+		}
+	}
+	return stdPackages, nil
 }
 
 func ShouldIgnoreSource(callStack *analyzer.CallStack, functions []string) bool {

@@ -25,6 +25,7 @@ ignored_functions:
   - 'flag.init'
   - 'runtime.check'
   - 'runtime.sysFaultOS'
+  - 'runtime.netpollinit'
 allowed_opcodes:
   - opcode: '0x2'
     funct: []

@@ -11,6 +11,7 @@ ignored_functions:
   - 'runtime.munmap'
   - 'runtime.exit'
   - 'runtime.sysFaultOS'
+  - 'runtime.netpollinit'
 allowed_opcodes:
   - opcode: '0x2'
     funct: []
