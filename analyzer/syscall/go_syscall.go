@@ -51,7 +51,7 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 	issues := make([]*analyzer.Issue, 0)
 	for i := range syscalls {
 		syscll := syscalls[i]
-		if slices.Contains(a.profile.AllowedSycalls, syscll.num) {
+		if slices.Contains(a.profile.AllowedSyscalls, syscll.num) {
 			continue
 		}
 		stackTrace := a.edgeToCallStack(syscll.edgeStack, fset, withTrace)

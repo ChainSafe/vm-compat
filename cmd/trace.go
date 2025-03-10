@@ -35,6 +35,7 @@ func CreateTraceCommand(action cli.ActionFunc) *cli.Command {
 		Action:      action,
 		Flags: []cli.Flag{
 			VMProfileFlag,
+			VMProfileConfigFlag,
 			FunctionNameFlag,
 			SourceTypeFlag,
 		},
@@ -44,8 +45,16 @@ func CreateTraceCommand(action cli.ActionFunc) *cli.Command {
 var TraceCommand = CreateTraceCommand(TraceCaller)
 
 func TraceCaller(ctx *cli.Context) error {
-	vmProfile := ctx.Path(VMProfileFlag.Name)
-	prof, err := profile.LoadProfile(vmProfile)
+	var vmProfile *profile.VMProfile
+	var err error
+	prof := ctx.Path(VMProfileFlag.Name)
+	if prof != "" {
+		vmProfile, err = profile.LoadProfile(prof)
+	} else {
+		profPath := ctx.Path(VMProfileConfigFlag.Name)
+		vmProfile, err = profile.LoadProfileFromConfig(profPath)
+	}
+
 	if err != nil {
 		return fmt.Errorf("error loading profile: %w", err)
 	}
@@ -56,9 +65,9 @@ func TraceCaller(ctx *cli.Context) error {
 
 	var analyzer analyzer.Analyzer
 	if sourceType == "go" {
-		analyzer = syscall.NewGOSyscallAnalyser(prof)
+		analyzer = syscall.NewGOSyscallAnalyser(vmProfile)
 	} else {
-		analyzer = syscall.NewAssemblySyscallAnalyser(prof)
+		analyzer = syscall.NewAssemblySyscallAnalyser(vmProfile)
 	}
 
 	callStack, err := analyzer.TraceStack(path, function)
