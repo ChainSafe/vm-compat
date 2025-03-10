@@ -82,10 +82,16 @@ func (r *TextRenderer) Render(issues []*analyzer.Issue, output io.Writer) error 
 		if len(groupedIssue[0].Reference) > 0 {
 			report.WriteString(fmt.Sprintf("   - Referance: %s \n", groupedIssue[0].Reference))
 		}
-		report.WriteString("   - CallStack:")
+		report.WriteString("   - CallStacks:")
 
-		for _, issue := range groupedIssue {
+		length := len(groupedIssue)
+		for i, issue := range groupedIssue {
 			report.WriteString(fmt.Sprintf("%s\n", buildCallStack(output, issue.CallStack, "")))
+			// Don't spam the text output
+			if i > 1 {
+				report.WriteString(fmt.Sprintf("\n          ..... and %d more \n", length-i))
+				break
+			}
 		}
 		issueCounter++
 	}

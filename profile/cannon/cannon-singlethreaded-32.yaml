@@ -24,6 +24,8 @@ ignored_functions:
   - 'github.com/prometheus/client_model/go.init.1'
   - 'flag.init'
   - 'runtime.check'
+  - 'runtime.sysFaultOS'
+  - 'runtime.netpollinit'
 allowed_opcodes:
   - opcode: '0x2'
     funct: []
