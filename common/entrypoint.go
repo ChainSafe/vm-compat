@@ -24,8 +24,9 @@ func ProgramEntrypoint(arch string) func(function string) bool {
 				function == "runtime.systemstack" ||
 				function == "runtime.gopanic" ||
 				function == "runtime.chanrecv" ||
-				function == "runtime.startm" || // 32 bit specific
-				function == "runtime.sysAlloc" // // 32 bit specific
+				function == "runtime.startm" ||
+				function == "runtime.sysAlloc" ||
+				function == "runtime.chansend"
 		}
 	case "mips64":
 		return func(function string) bool {
@@ -40,7 +41,10 @@ func ProgramEntrypoint(arch string) func(function string) bool {
 				function == "runtime.morestack" ||
 				function == "runtime.systemstack" ||
 				function == "runtime.gopanic" ||
-				function == "runtime.chanrecv"
+				function == "runtime.chanrecv" ||
+				function == "runtime.startm" ||
+				function == "runtime.sysAlloc" ||
+				function == "runtime.chansend"
 		}
 	}
 	return func(function string) bool {
