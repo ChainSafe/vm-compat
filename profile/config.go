@@ -28,6 +28,8 @@ var vmProfileConfigs map[string]*VMProfile = map[string]*VMProfile{
 			"github.com/prometheus/client_model/go.init.1",
 			"flag.init",
 			"runtime.check",
+			"runtime.sysFaultOS",
+			"runtime.netpollinit",
 		},
 		AllowedOpcodes: []OpcodeInstruction{
 			{Opcode: "0x2"},
@@ -109,6 +111,8 @@ var vmProfileConfigs map[string]*VMProfile = map[string]*VMProfile{
 			"runtime.rtsigprocmask",
 			"runtime.munmap",
 			"runtime.exit",
+			"runtime.sysFaultOS",
+			"runtime.netpollinit",
 		},
 		AllowedOpcodes: []OpcodeInstruction{
 			{"0x2", []string{}},
@@ -168,6 +172,8 @@ var vmProfileConfigs map[string]*VMProfile = map[string]*VMProfile{
 			"syscall.setrlimit",
 			"runtime.morestack",
 			"runtime.abort",
+			"runtime.sysFaultOS",
+			"runtime.netpollinit",
 		},
 		AllowedOpcodes: []OpcodeInstruction{
 			{Opcode: "0x2", Funct: []string{}},
