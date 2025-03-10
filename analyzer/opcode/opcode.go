@@ -36,7 +36,7 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 	for _, segment := range callGraph.Segments() {
 		for _, instruction := range segment.Instructions() {
 			if !op.isAllowedOpcode(instruction.OpcodeHex(), instruction.Funct()) {
-				source, err := common.TraceAsmCaller(
+				sources, err := common.TraceAllAsmCaller(
 					absPath,
 					callGraph,
 					segment.Label(),
@@ -45,23 +45,23 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 				if err != nil { // non-reachable portion ignored
 					continue
 				}
-
-				opts := []analyzer.Opt{
-					analyzer.WithSeverity(analyzer.IssueSeverityCritical),
-					analyzer.WithCallStack(source),
-					analyzer.WithMessage(
-						fmt.Sprintf("Potential Incompatible Opcode Detected: Opcode: %s, Funct: %s",
-							instruction.OpcodeHex(), instruction.Funct()),
-					),
+				for _, source := range sources {
+					opts := []analyzer.Opt{
+						analyzer.WithSeverity(analyzer.IssueSeverityCritical),
+						analyzer.WithCallStack(source),
+						analyzer.WithMessage(
+							fmt.Sprintf("Potential Incompatible Opcode Detected: Opcode: %s, Funct: %s",
+								instruction.OpcodeHex(), instruction.Funct()),
+						),
+					}
+					if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
+						opts = append(opts, analyzer.WithSeverity(analyzer.IssueSeverityWarning))
+					}
+					if !withTrace {
+						source.CallStack = nil
+					}
+					issues = append(issues, analyzer.NewIssue(opts...))
 				}
-				if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
-					opts = append(opts, analyzer.WithSeverity(analyzer.IssueSeverityWarning))
-				}
-				if !withTrace {
-					source.CallStack = nil
-				}
-
-				issues = append(issues, analyzer.NewIssue(opts...))
 			}
 		}
 	}

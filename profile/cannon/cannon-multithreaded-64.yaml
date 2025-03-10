@@ -5,6 +5,8 @@ ignored_functions:
   - 'syscall.setrlimit'
   - 'runtime.morestack'
   - 'runtime.abort'
+  - 'runtime.sysFaultOS'
+  - 'runtime.netpollinit'
 
 allowed_opcodes:
   - opcode: '0x2'
