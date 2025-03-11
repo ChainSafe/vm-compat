@@ -32,7 +32,7 @@ func NewAssemblySyscallAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 // Analyze scans an assembly file for syscalls and detects compatibility issues.
 //
 //nolint:cyclop
-func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
+func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool, skipWarnings bool) ([]*analyzer.Issue, error) {
 	callGraph, err := a.buildCallGraph(path)
 	if err != nil {
 		return nil, err
@@ -70,10 +70,16 @@ func (a *asmSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.I
 				for _, source := range sources {
 					severity := analyzer.IssueSeverityCritical
 					if common.ShouldIgnoreSource(source, a.profile.IgnoredFunctions) {
+						if skipWarnings {
+							continue
+						}
 						severity = analyzer.IssueSeverityWarning
 					}
 					message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscall.Number)
 					if slices.Contains(a.profile.NOOPSyscalls, syscall.Number) {
+						if skipWarnings {
+							continue
+						}
 						message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscall.Number)
 						severity = analyzer.IssueSeverityWarning
 					}

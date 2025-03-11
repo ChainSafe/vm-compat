@@ -40,7 +40,7 @@ func NewGOSyscallAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 // Analyze scans a Go binary for syscalls and detects compatibility issues.
 //
 //nolint:cyclop
-func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
+func (a *goSyscallAnalyser) Analyze(path string, withTrace bool, skipWarnings bool) ([]*analyzer.Issue, error) {
 	cg, fset, err := a.buildCallGraph(path)
 	if err != nil {
 		return nil, err
@@ -59,6 +59,9 @@ func (a *goSyscallAnalyser) Analyze(path string, withTrace bool) ([]*analyzer.Is
 		severity := analyzer.IssueSeverityCritical
 		message := fmt.Sprintf("Potential Incompatible Syscall Detected: %d", syscll.num)
 		if slices.Contains(a.profile.NOOPSyscalls, syscll.num) {
+			if skipWarnings {
+				continue
+			}
 			severity = analyzer.IssueSeverityWarning
 			message = fmt.Sprintf("Potential NOOP Syscall Detected: %d", syscll.num)
 		}

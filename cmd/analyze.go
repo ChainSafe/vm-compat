@@ -54,6 +54,12 @@ var (
 		Required: false,
 		Value:    false,
 	}
+	SkipWarnings = &cli.BoolFlag{
+		Name:     "skip-warnings",
+		Usage:    "skip the issue with severity warning",
+		Required: false,
+		Value:    false,
+	}
 
 	BaselineReport = &cli.StringFlag{
 		Name:     "baseline-report",
@@ -76,6 +82,7 @@ func CreateAnalyzeCommand(action cli.ActionFunc) *cli.Command {
 			FormatFlag,
 			ReportOutputPathFlag,
 			TraceFlag,
+			SkipWarnings,
 			BaselineReport,
 		},
 	}
@@ -104,6 +111,7 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 	reportOutputPath := ctx.Path(ReportOutputPathFlag.Name)
 	analysisType := ctx.String(AnalysisTypeFlag.Name)
 	withTrace := ctx.Bool(TraceFlag.Name)
+	skipWarnings := ctx.Bool(SkipWarnings.Name)
 	baselineReport := ctx.Path(BaselineReport.Name)
 
 	disassemblyPath, err = disassemble(vmProfile, source, disassemblyPath)
@@ -111,7 +119,7 @@ func AnalyzeCompatibility(ctx *cli.Context) error {
 		return fmt.Errorf("error disassembling the file: %w", err)
 	}
 
-	issues, err := analyze(vmProfile, disassemblyPath, analysisType, withTrace)
+	issues, err := analyze(vmProfile, disassemblyPath, analysisType, withTrace, skipWarnings)
 	if err != nil {
 		return fmt.Errorf("analysis failed: %w", err)
 	}
@@ -146,19 +154,19 @@ func disassemble(prof *profile.VMProfile, path, outputPath string) (string, erro
 }
 
 // analyze runs the selected analyzer(s).
-func analyze(prof *profile.VMProfile, disassemblyPath, mode string, withTrace bool) ([]*analyzer.Issue, error) {
+func analyze(prof *profile.VMProfile, disassemblyPath, mode string, withTrace bool, skipWarnings bool) ([]*analyzer.Issue, error) {
 	if mode == "opcode" {
-		return opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace)
+		return opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace, skipWarnings)
 	}
 	if mode == "syscall" {
-		return syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace)
+		return syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace, skipWarnings)
 	}
 	// by default analyze both
-	opIssues, err := opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace)
+	opIssues, err := opcode.NewAnalyser(prof).Analyze(disassemblyPath, withTrace, skipWarnings)
 	if err != nil {
 		return nil, err
 	}
-	sysIssues, err := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace)
+	sysIssues, err := syscall.NewAssemblySyscallAnalyser(prof).Analyze(disassemblyPath, withTrace, skipWarnings)
 	if err != nil {
 		return nil, err
 	}
