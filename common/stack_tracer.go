@@ -91,6 +91,9 @@ func TraceAllAsmCaller(
 	var visit func(segment asmparser.Segment)
 
 	visit = func(segment asmparser.Segment) {
+		if len(sources) >= 20 { // protect for infinite searching
+			return
+		}
 		if seen[segment] {
 			return
 		}
