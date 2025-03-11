@@ -22,7 +22,7 @@ func NewAnalyser(profile *profile.VMProfile) analyzer.Analyzer {
 	return &opcode{profile: profile}
 }
 
-func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error) {
+func (op *opcode) Analyze(path string, withTrace bool, skipWarnings bool) ([]*analyzer.Issue, error) {
 	callGraph, err := op.buildCallGraph(path)
 	if err != nil {
 		return nil, err
@@ -55,6 +55,9 @@ func (op *opcode) Analyze(path string, withTrace bool) ([]*analyzer.Issue, error
 						),
 					}
 					if common.ShouldIgnoreSource(source, op.profile.IgnoredFunctions) {
+						if skipWarnings {
+							continue
+						}
 						opts = append(opts, analyzer.WithSeverity(analyzer.IssueSeverityWarning))
 					}
 					if !withTrace {

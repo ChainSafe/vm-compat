@@ -13,7 +13,7 @@ import (
 type Analyzer interface {
 	// Analyze analyzes the provided source code and returns any issues found.
 	// TODO: better to update the code to take a reader interface instead of path
-	Analyze(path string, withTrace bool) ([]*Issue, error)
+	Analyze(path string, withTrace bool, skipWarnings bool) ([]*Issue, error)
 
 	// TraceStack generates callstack for a function to debug
 	TraceStack(path string, function string) (*CallStack, error)
