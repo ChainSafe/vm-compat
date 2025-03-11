@@ -34,17 +34,20 @@ jobs:
       # Skip build & upload if no new release was created
       - name: Check if release was created
         if: ${{ steps.release.outputs.release_created != 'true' }}
-        run: echo "No release created, skipping binary build." && exit 0
+        run: echo "No release created, skipping binary build."
 
       - name: Build binaries
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         run: make build-all
 
       - name: Generate checksums
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         run: |
           cd bin
           sha256sum * > checksums.txt
 
       - name: Upload Release Assets
+        if: ${{ steps.release.outputs.release_created == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
