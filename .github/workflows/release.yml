@@ -1,0 +1,54 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'  # Adjust this to match your Go version
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Run Release Please
+        id: release
+        uses: GoogleCloudPlatform/release-please-action@v4
+        with:
+          release-type: go
+          package-name: analyzer
+
+      # Skip build & upload if no new release was created
+      - name: Check if release was created
+        if: ${{ steps.release.outputs.release_created != 'true' }}
+        run: echo "No release created, skipping binary build." && exit 0
+
+      - name: Build binaries
+        run: make build-all
+
+      - name: Generate checksums
+        run: |
+          cd bin
+          sha256sum * > checksums.txt
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/analyzer-*
+            bin/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
