@@ -1,0 +1,12 @@
+[plugin]
+name = "vm-compat"
+description = "analyzes Go programs for compatibility with different Virtual Machines (VMs), specifically targeting the Cannon VM."
+type = "external"
+
+[plugin.external]
+host = "github"
+repo = "ChainSafe/vm-compat"
+fetch = "mise/scripts/install.sh"
+list = "mise/scripts/list.sh"
+latest = "mise/scripts/latest.sh"
+parse = "mise/scripts/parse.sh"
