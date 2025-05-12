@@ -114,13 +114,13 @@ func parseInstruction(line string) (*instruction, error) {
 	if len(matches) <= 4 {
 		return nil, fmt.Errorf("failed to parse instruction: %s", line)
 	}
-	instr, err := decodeInstruction(strings.ReplaceAll(matches[3], " ", ""))
-	if err != nil {
-		return nil, fmt.Errorf("invalid MIPS instruction format: %w", err)
-	}
 	pcAddress, err := strconv.ParseUint(matches[1], 16, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid instruction address: %w", err)
+	}
+	instr, err := decodeInstruction(strings.ReplaceAll(matches[3], " ", ""), pcAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid MIPS instruction format: %w", err)
 	}
 	instr.opcodeString = matches[4]
 	instr.address = pcAddress
@@ -129,7 +129,7 @@ func parseInstruction(line string) (*instruction, error) {
 
 // decodeInstruction decodes a hexadecimal MIPS instruction.
 // https://en.wikibooks.org/wiki/MIPS_Assembly/Instruction_Formats#FI_Instructions
-func decodeInstruction(str string) (*instruction, error) {
+func decodeInstruction(str string, pcAddress uint64) (*instruction, error) {
 	_instruction, err := strconv.ParseUint(str, 16, 32)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse hex instruction: %w", err)
@@ -163,7 +163,7 @@ func decodeInstruction(str string) (*instruction, error) {
 			int64(funcCode),
 		)
 	case 0x02, 0x03: // J-Type Instructions (Jump)
-		targetAddress := (instr & 0x03FFFFFF) << 2
+		targetAddress := (instr&0x03FFFFFF)<<2 + (uint32(pcAddress+4) & 0xF0000000)
 		decodedInstruction.instType = asmparser.JType
 		//nolint
 		decodedInstruction.operands = append(decodedInstruction.operands, int64(targetAddress))
