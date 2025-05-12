@@ -204,7 +204,7 @@ var vmProfileConfigs map[string]*VMProfile = map[string]*VMProfile{
 			{Opcode: "0xe", Funct: []string{}},
 			{Opcode: "0x18", Funct: []string{}},
 			{Opcode: "0x19", Funct: []string{}},
-			{Opcode: "0x1c", Funct: []string{"0x2", "0x20", "0x21"}},
+			{Opcode: "0x1c", Funct: []string{"0x2", "0x20", "0x21", "0x24", "0x25"}},
 			{Opcode: "0xf", Funct: []string{}},
 			{Opcode: "0x20", Funct: []string{}},
 			{Opcode: "0x21", Funct: []string{}},
@@ -229,9 +229,9 @@ var vmProfileConfigs map[string]*VMProfile = map[string]*VMProfile{
 			5009, 5012, 5205, 5000, 5001, 5070, 5055, 5058, 5023, 5178, 5194, 5002, 5034, 5222, 5038,
 		},
 		NOOPSyscalls: []int{
-			5011, 5196, 5027, 5014, 5129, 5013, 5297, 5003, 5016, 5004, 5005, 5247, 5087,
+			5010, 5011, 5196, 5027, 5014, 5129, 5013, 5297, 5003, 5016, 5004, 5005, 5247, 5087,
 			5257, 5015, 5285, 5287, 5208, 5272, 5313, 5061, 5100, 5102, 5026, 5225, 5095, 5008,
-			5036, 5216, 5217, 5220,
+			5036, 5216, 5217, 5220, 5284,
 		},
 	},
 }
